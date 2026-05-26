@@ -25,3 +25,7 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://projects.intra.42.fr/rag-against-the-machine/mboutte"
+
+[tool.mypy]
+mypy_path = "src"
+files = ["src"]

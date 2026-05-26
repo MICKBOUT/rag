@@ -1,8 +1,9 @@
 import ast
+from typing import Any
 
 
 class ContextualParser(ast.NodeVisitor):
-    def __init__(self):
+    def __init__(self) -> None:
         self.stack = []
         self.results = []
 
@@ -16,7 +17,7 @@ class ContextualParser(ast.NodeVisitor):
         })
 
     # fix 3 — collect every function/method name called inside a node's body
-    def _extract_calls(self, node):
+    def _extract_calls(self, node) -> list[dict[Any, Any | None]]:
         calls = []
         for child in ast.walk(node):
             if isinstance(child, ast.Call):
@@ -94,7 +95,8 @@ def format_callable_chunk(r, lines, file_name, kind):
 
     calls_section = ""
     if calls:
-        calls_section = "CALLS:\n" + "\n".join(f"- {c}()" for c in calls) + "\n"
+        calls_section = "CALLS:\n" + "\n".join(
+            f"- {c}()" for c in calls) + "\n"
 
     return (
         f"FILE: {file_name}\n"
