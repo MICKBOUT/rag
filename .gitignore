@@ -1,3 +1,6 @@
+# this line is here for know, maybe the model will be push later
+data/raw/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

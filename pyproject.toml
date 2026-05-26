@@ -14,8 +14,13 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "bm25s>=0.3.9",
+    "fire>=0.7.1",
     "flake8>=7.3.0",
     "mypy>=2.1.0",
+    "pydantic>=2.13.4",
+    "tqdm>=4.67.3",
+    "transformers>=5.9.0",
 ]
 
 [project.urls]
