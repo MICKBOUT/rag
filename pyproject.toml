@@ -21,6 +21,7 @@ dependencies = [
     "pydantic>=2.13.3",
     "tqdm>=4.67.3",
     "transformers>=5.6.2",
+    "types-tqdm>=4.67.3.20260518",
 ]
 
 [project.urls]
@@ -29,3 +30,7 @@ dependencies = [
 [tool.mypy]
 mypy_path = "src"
 files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["bm25s_test"]
+disable_error_code = ["import-untyped"]

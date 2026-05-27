@@ -1,5 +1,8 @@
+from ast_proto import get_ready_to_index_data
+
+
 def main() -> None:
-    print("Hello from rag!")
+    get_ready_to_index_data()
 
 
 if __name__ == "__main__":
