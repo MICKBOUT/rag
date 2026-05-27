@@ -818,6 +818,7 @@ dependencies = [
     { name = "flake8" },
     { name = "mypy" },
     { name = "pydantic" },
+    { name = "stubs" },
     { name = "tqdm" },
     { name = "transformers" },
     { name = "types-tqdm" },
@@ -830,6 +831,7 @@ requires-dist = [
     { name = "flake8", specifier = ">=7.3.0" },
     { name = "mypy", specifier = ">=2.1.0" },
     { name = "pydantic", specifier = ">=2.13.3" },
+    { name = "stubs", specifier = ">=1.0.0" },
     { name = "tqdm", specifier = ">=4.67.3" },
     { name = "transformers", specifier = ">=5.6.2" },
     { name = "types-tqdm", specifier = ">=4.67.3.20260518" },
@@ -980,6 +982,14 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/29/59ed8152b30f72c42d00d241e58eaca558ae9dbfa5695206e2e0f54c7063/safetensors-0.7.0-pp310-pypy310_pp73-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:12f49080303fa6bb424b362149a12949dfbbf1e06811a88f2307276b0c131afd", size = 503977, upload-time = "2025-11-19T15:18:17.523Z" },
     { url = "https://files.pythonhosted.org/packages/d3/0b/4811bfec67fa260e791369b16dab105e4bae82686120554cc484064e22b4/safetensors-0.7.0-pp310-pypy310_pp73-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:0071bffba4150c2f46cae1432d31995d77acfd9f8db598b5d1a2ce67e8440ad2", size = 623890, upload-time = "2025-11-19T15:18:22.666Z" },
     { url = "https://files.pythonhosted.org/packages/58/5b/632a58724221ef03d78ab65062e82a1010e1bef8e8e0b9d7c6d7b8044841/safetensors-0.7.0-pp310-pypy310_pp73-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:473b32699f4200e69801bf5abf93f1a4ecd432a70984df164fc22ccf39c4a6f3", size = 531885, upload-time = "2025-11-19T15:18:27.146Z" },
+]
+
+[[package]]
+name = "stubs"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/06/34d1970fd8872a406746ccc168ac4034b864450af72022d540aef8bf1f7a/stubs-1.0.0-py3-none-any.whl", hash = "sha256:f328a0f99880b0684db69288dcb104fa93d942df298ddd1659edaa7521415da8", size = 8499, upload-time = "2016-10-31T22:15:37.884Z" },
 ]
 
 [[package]]

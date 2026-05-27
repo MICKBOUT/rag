@@ -1,5 +1,6 @@
 # this line is here for know, maybe the model will be push later
 data/raw/
+bm25s_index_llm/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

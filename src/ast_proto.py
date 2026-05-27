@@ -55,7 +55,6 @@ def classify(context: list[tuple[str, str]]) -> str:
     return 'function'
 
 
-# fix 1 — class chunk lists method names only, no bodies
 def format_class_chunk(
         r: dict[str, Any],
         results: list[dict[str, Any]],
@@ -78,7 +77,6 @@ def format_class_chunk(
     )
 
 
-# fix 2 — nested functions include parent context line
 def format_nested_chunk(
         r: dict[str, Any], lines: list[str], file_name: str) -> str:
     symbol = ".".join(name for _, name in r['context'])
@@ -93,7 +91,6 @@ def format_nested_chunk(
     )
 
 
-# fix 3 — functions/methods include CALLS section
 def format_callable_chunk(
         r: dict[str, Any], lines: list[str], file_name: str, kind: str) -> str:
     symbol = ".".join(name for _, name in r['context'])
