@@ -33,5 +33,5 @@ mypy_path = "src"
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["bm25s_test"]
+module = ["bm25s_test", "main"]
 disable_error_code = ["import-untyped"]
