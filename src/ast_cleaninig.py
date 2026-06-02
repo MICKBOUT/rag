@@ -88,6 +88,15 @@ def _build_heading_path(
     return inherited + local_headings
 
 
+def _display_path(path: Path) -> str:
+    if path.is_absolute():
+        try:
+            return str(path.relative_to(Path.cwd()))
+        except ValueError:
+            return str(path)
+    return str(path)
+
+
 def _char_span_from_lines(
         line_starts: list[int], lines: list[str],
         start_line: int, end_line: int) -> tuple[int, int]:
@@ -198,7 +207,7 @@ def get_ready_to_index_data(
     def get_ready_to_index_py_file(
             file_name: str | Path = "src/test_file.py") -> None:
 
-        file_name_str = str(file_name)
+        file_name_str = _display_path(Path(file_name))
 
         with open(file=file_name, mode="r", encoding="utf-8") as f:
             source = f.read()
@@ -303,13 +312,13 @@ def get_ready_to_index_data(
         text = body
         if heading_path:
             text = (
-                f"FILE: {file_name}\n"
+                f"FILE: {_display_path(file_name)}\n"
                 f"HEADING: {' > '.join(heading_path)}\n\n"
                 f"{body}"
             )
         return [IndexChunk(
             text=text,
-            file_path=str(file_name),
+            file_path=_display_path(file_name),
             first_character_index=start_offset,
             last_character_index=end_offset,
             kind='markdown',

@@ -22,7 +22,7 @@ debug:
 clean:
 	@echo "cleaning project..."
 	@uv clean
-	@rm -rf $(VENV) bm25s_index_llm
+	@rm -rf $(VENV) bm25s_index_llm data/output/* data/processed/*
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	@echo "Project clean"

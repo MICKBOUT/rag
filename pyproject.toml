@@ -33,5 +33,8 @@ mypy_path = "src"
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["bm25s_test", "main"]
+module = ["bm25s_test", "indexing", "main", "retrieval"]
 disable_error_code = ["import-untyped"]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
