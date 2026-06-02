@@ -13,6 +13,7 @@ MARKER_RE = re.compile(
     r'\[(?P<kind>start|end):(?P<name>[^\]]+)\]\s*(?:-->)?\s*$'
 )
 HEADING_RE = re.compile(r'^(?P<hashes>#{1,6})\s+(?P<title>.+?)\s*$')
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass(slots=True)
@@ -91,10 +92,20 @@ def _build_heading_path(
 def _display_path(path: Path) -> str:
     if path.is_absolute():
         try:
-            return str(path.relative_to(Path.cwd()))
+            return str(path.relative_to(REPO_ROOT))
         except ValueError:
-            return str(path)
+            try:
+                return str(path.relative_to(Path.cwd()))
+            except ValueError:
+                return str(path)
     return str(path)
+
+
+def _resolve_repo_path(path: str | Path) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return (REPO_ROOT / candidate).resolve()
 
 
 def _char_span_from_lines(
@@ -203,6 +214,7 @@ def format_callable_chunk(
 def get_ready_to_index_data(
         folder_path: str = "data/raw/vllm-0.10.1") -> list[dict[str, Any]]:
     clean_data_lst: list[IndexChunk] = []
+    folder_root = _resolve_repo_path(folder_path)
 
     def get_ready_to_index_py_file(
             file_name: str | Path = "src/test_file.py") -> None:
@@ -429,11 +441,11 @@ def get_ready_to_index_data(
         finally:
             active_stack.remove(visit_key)
 
-    files = list(Path(folder_path).rglob("*.py"))
+    files = list(folder_root.rglob("*.py"))
     for file in tqdm(files, "Parsing files"):
         get_ready_to_index_py_file(file)
 
-    docs_root = Path(folder_path)
+    docs_root = folder_root
     md_files = [
         file for file in docs_root.rglob("*.md")
         if not file.name.endswith(".inc.md")

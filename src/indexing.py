@@ -8,12 +8,21 @@ from ast_cleaninig import get_ready_to_index_data
 
 
 INDEX_PATH = "data/processed/bm25_index"
+CHUNKS_PATH = "data/processed/chunks/chunks.jsonl"
 RAW_ROOT = "data/raw/vllm-0.10.1"
 DEFAULT_MAX_CHUNK_SIZE = 2000
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _metadata_path(index_path: str) -> Path:
-    return Path(index_path) / "metadata.json"
+    return _resolve_repo_path(index_path) / "metadata.json"
+
+
+def _resolve_repo_path(path: str | Path) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return (REPO_ROOT / candidate).resolve()
 
 
 def _entry_text(entry: dict[str, Any]) -> str:
@@ -43,6 +52,32 @@ def _write_index_metadata(
     )
 
 
+def _write_chunks(corpus: list[dict[str, Any]]) -> None:
+    path = _resolve_repo_path(CHUNKS_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for entry in corpus:
+            handle.write(
+                json.dumps(entry, ensure_ascii=False) + "\n"
+            )
+
+
+def load_chunks(
+        chunks_path: str = CHUNKS_PATH) -> list[dict[str, Any]]:
+    path = _resolve_repo_path(chunks_path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Chunk file not found: {path}. Run `student index` first."
+        )
+
+    chunks: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        chunks.append(cast(dict[str, Any], json.loads(line)))
+    return chunks
+
+
 def _read_index_metadata(index_path: str) -> dict[str, Any] | None:
     path = _metadata_path(index_path)
     if not path.exists():
@@ -64,19 +99,26 @@ def build_and_save_index(
         index_path: str = INDEX_PATH,
         max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
+    resolved_index_path = _resolve_repo_path(index_path)
     corpus = [
         _limit_entry_text(entry, max_chunk_size)
         for entry in get_ready_to_index_data(folder_path)
     ]
+    if not corpus:
+        raise ValueError(
+            f"No source files were indexed from {folder_path}. "
+            "Check that the corpus path is correct."
+        )
     corpus_texts = [_entry_text(entry) for entry in corpus]
 
     corpus_tokens = bm25s.tokenize(corpus_texts)
 
     retriever = bm25s.BM25()
     retriever.index(corpus_tokens)
-    retriever.save(index_path, corpus=corpus)
+    retriever.save(str(resolved_index_path), corpus=corpus)
+    _write_chunks(corpus)
     _write_index_metadata(
-        index_path,
+        str(resolved_index_path),
         max_chunk_size=max_chunk_size,
         folder_path=folder_path,
     )
@@ -89,7 +131,8 @@ def load_index(
         index_path: str = INDEX_PATH,
         max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
-    retriever = bm25s.BM25.load(index_path, load_corpus=True)
+    resolved_index_path = _resolve_repo_path(index_path)
+    retriever = bm25s.BM25.load(str(resolved_index_path), load_corpus=True)
     corpus = retriever.corpus
 
     if corpus is None:
@@ -99,7 +142,7 @@ def load_index(
     if _corpus_has_absolute_paths(normalized_corpus):
         raise ValueError("Corpus paths are absolute — rebuilding.")
 
-    metadata = _read_index_metadata(index_path)
+    metadata = _read_index_metadata(str(resolved_index_path))
     if metadata is None:
         raise ValueError("Index metadata missing — rebuilding.")
     if int(metadata.get("max_chunk_size", -1)) != max_chunk_size:

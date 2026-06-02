@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from tqdm import tqdm
 
-from indexing import load_or_build_index
+from indexing import load_chunks, load_or_build_index
 from models import GeneratedAnswer, SearchResult
 from retrieval import search
 
@@ -17,12 +17,14 @@ from retrieval import search
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
 DEFAULT_TEMPERATURE = 0.0
-DEFAULT_MAX_TOKENS = 256
+DEFAULT_MAX_TOKENS = 128
 DEFAULT_SEARCH_K = 10
 DEFAULT_TOP_CONTEXT_CHUNKS = 3
 DEFAULT_MAX_CONTEXT_CHARS = 12_000
 DEFAULT_MAX_CHUNK_CHARS = 2_000
 DEFAULT_TIMEOUT_SECONDS = 60.0
+DEFAULT_CONCURRENCY = 8
+DEFAULT_CHECKPOINT_INTERVAL = 1
 
 SYSTEM_PROMPT = (
     "You answer questions about the vLLM repository using only the provided "
@@ -389,6 +391,26 @@ def _load_search_results(
     return cast(dict[str, Any], payload)
 
 
+def _load_existing_answers(
+        output_path: Path) -> dict[str, dict[str, Any]]:
+    if not output_path.exists():
+        return {}
+
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    answers = payload.get("search_results", [])
+    if not isinstance(answers, list):
+        return {}
+
+    existing: dict[str, dict[str, Any]] = {}
+    for item in answers:
+        if not isinstance(item, dict):
+            continue
+        question_id = str(item.get("question_id", ""))
+        if question_id:
+            existing[question_id] = item
+    return existing
+
+
 def answer_dataset(
         student_search_results_path: str | Path,
         *,
@@ -399,16 +421,27 @@ def answer_dataset(
         temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        concurrency: int = 4,
+        concurrency: int = DEFAULT_CONCURRENCY,
+        checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
+        output_path: str | Path | None = None,
         retriever: Any | None = None,
         corpus: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    if retriever is None or corpus is None:
-        retriever, corpus = load_or_build_index()
-
     payload = _load_search_results(student_search_results_path)
     search_results = list(payload.get("search_results", []))
+    if corpus is None:
+        try:
+            corpus = load_chunks()
+        except FileNotFoundError:
+            _, corpus = load_or_build_index()
+
     corpus_lookup = _build_corpus_lookup(corpus)
+    output_path_obj = Path(output_path) if output_path is not None else None
+    existing_answers = (
+        _load_existing_answers(output_path_obj)
+        if output_path_obj is not None
+        else {}
+    )
 
     config = GenerationConfig(
         model=_resolve_model(model),
@@ -420,19 +453,16 @@ def answer_dataset(
         timeout_seconds=timeout_seconds,
     )
 
-    if concurrency <= 1:
-        answers = []
-        for item in tqdm(search_results, desc="Generating answers"):
-            answers.append(
-                _answer_student_item(item, corpus_lookup, config)
-            )
-    else:
-        answers = _answer_student_items_concurrently(
-            search_results,
-            corpus_lookup,
-            config,
-            concurrency=concurrency,
-        )
+    answers = _answer_student_items_with_resume(
+        search_results,
+        corpus_lookup,
+        config,
+        existing_answers=existing_answers,
+        concurrency=concurrency,
+        checkpoint_interval=max(1, checkpoint_interval),
+        output_path=output_path_obj,
+        base_payload=payload,
+    )
 
     return {
         "search_results": answers,
@@ -492,6 +522,102 @@ def _answer_student_items_concurrently(
     return [result for result in results if result is not None]
 
 
+def _answer_student_items_with_resume(
+        items: list[dict[str, Any]],
+        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
+        config: GenerationConfig,
+        *,
+        existing_answers: dict[str, dict[str, Any]],
+        concurrency: int,
+        checkpoint_interval: int,
+        output_path: Path | None,
+        base_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    answers: list[dict[str, Any] | None] = [None] * len(items)
+    completed = 0
+
+    for index, item in enumerate(items):
+        question_id = str(item.get("question_id", ""))
+        if question_id and question_id in existing_answers:
+            answers[index] = existing_answers[question_id]
+
+    pending_indexes = [
+        index for index, item in enumerate(items)
+        if answers[index] is None
+    ]
+
+    if not pending_indexes:
+        return [answer for answer in answers if answer is not None]
+
+    if concurrency <= 1:
+        for index in tqdm(pending_indexes, desc="Generating answers"):
+            answers[index] = _answer_student_item(
+                items[index],
+                corpus_lookup,
+                config,
+            )
+            completed += 1
+            if (
+                output_path is not None
+                and completed % checkpoint_interval == 0
+            ):
+                save_answers(
+                    {
+                        **base_payload,
+                        "search_results": [
+                            answer for answer in answers if answer is not None
+                        ],
+                    },
+                    output_path,
+                )
+    else:
+        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as executor:
+            future_to_index = {
+                executor.submit(
+                    _answer_student_item,
+                    items[index],
+                    corpus_lookup,
+                    config,
+                ): index
+                for index in pending_indexes
+            }
+            for future in tqdm(
+                    as_completed(future_to_index),
+                    total=len(future_to_index),
+                    desc="Generating answers"):
+                index = future_to_index[future]
+                answers[index] = future.result()
+                completed += 1
+                if (
+                    output_path is not None
+                    and completed % checkpoint_interval == 0
+                ):
+                    save_answers(
+                        {
+                            **base_payload,
+                            "search_results": [
+                                answer
+                                for answer in answers
+                                if answer is not None
+                            ],
+                        },
+                        output_path,
+                    )
+
+    if output_path is not None:
+        save_answers(
+            {
+                **base_payload,
+                "search_results": [
+                    answer for answer in answers if answer is not None
+                ],
+            },
+            output_path,
+        )
+
+    return [answer for answer in answers if answer is not None]
+
+
 def save_answers(
         payload: dict[str, Any], output_path: str | Path) -> Path:
     path = Path(output_path)
@@ -514,11 +640,12 @@ def answer_dataset_to_file(
         temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        concurrency: int = 4,
-        retriever: Any | None = None,
+        concurrency: int = DEFAULT_CONCURRENCY,
+        checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
         corpus: list[dict[str, Any]] | None = None,
 ) -> Path:
-    payload = answer_dataset(
+    output_path = Path(output_dir) / Path(student_search_results_path).name
+    answer_dataset(
         student_search_results_path,
         model=model,
         base_url=base_url,
@@ -528,8 +655,8 @@ def answer_dataset_to_file(
         max_tokens=max_tokens,
         timeout_seconds=timeout_seconds,
         concurrency=concurrency,
-        retriever=retriever,
+        checkpoint_interval=checkpoint_interval,
+        output_path=output_path,
         corpus=corpus,
     )
-    output_path = Path(output_dir) / Path(student_search_results_path).name
-    return save_answers(payload, output_path)
+    return output_path

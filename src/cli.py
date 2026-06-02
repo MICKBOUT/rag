@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any
 
 import fire
@@ -90,7 +91,7 @@ class RAGCLI:
             top_context_chunks: int = 3,
             max_context_chars: int = 12_000,
             temperature: float = 0.0,
-            max_tokens: int = 256,
+            max_tokens: int = 128,
             timeout_seconds: float = 60.0,
             folder_path: str = "data/raw/vllm-0.10.1",
             index_path: str = "data/processed/bm25_index",
@@ -124,19 +125,12 @@ class RAGCLI:
             top_context_chunks: int = 3,
             max_context_chars: int = 12_000,
             temperature: float = 0.0,
-            max_tokens: int = 256,
+            max_tokens: int = 128,
             timeout_seconds: float = 60.0,
-            concurrency: int = 4,
+            concurrency: int = 8,
+            checkpoint_interval: int = 1,
             save_directory: str = "data/output/search_results_and_answer",
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
     ) -> str:
-        retriever, corpus = load_or_build_index(
-            folder_path,
-            index_path,
-            max_chunk_size=max_chunk_size,
-        )
         output_path = answer_dataset_to_file(
             student_search_results_path,
             output_dir=save_directory,
@@ -148,8 +142,7 @@ class RAGCLI:
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
             concurrency=concurrency,
-            retriever=retriever,
-            corpus=corpus,
+            checkpoint_interval=checkpoint_interval,
         )
         return str(output_path)
 
@@ -187,6 +180,16 @@ class RAGCLI:
             },
             indent=2,
         )
+
+    def datasets(self, root: str = "data/datasets") -> dict[str, Any]:
+        root_path = Path(root)
+        return {
+            "root": str(root_path),
+            "datasets": [
+                str(path)
+                for path in sorted(root_path.rglob("*.json"))
+            ],
+        }
 
 
 def main() -> None:
