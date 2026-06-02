@@ -17,7 +17,7 @@ from retrieval import search
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
 DEFAULT_TEMPERATURE = 0.0
-DEFAULT_MAX_TOKENS = 128
+DEFAULT_MAX_TOKENS = 256
 DEFAULT_SEARCH_K = 10
 DEFAULT_TOP_CONTEXT_CHUNKS = 3
 DEFAULT_MAX_CONTEXT_CHARS = 12_000
@@ -25,12 +25,14 @@ DEFAULT_MAX_CHUNK_CHARS = 2_000
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_CONCURRENCY = 8
 DEFAULT_CHECKPOINT_INTERVAL = 1
+QWEN_IM_START = "<|im_start|>"
+QWEN_IM_END = "<|im_end|>"
 
 SYSTEM_PROMPT = (
     "You answer questions about the vLLM repository using only the provided "
-    "context. If the context is insufficient, say that you cannot find a "
-    "supported answer in the retrieved sources. Be concise and factual. "
-    "Do not invent details."
+    "context. Do not explain your reasoning, do not show chain of thought, "
+    "and do not invent details. Return only the final answer. If the "
+    "context is insufficient, say that you cannot find a supported answer."
 )
 
 
@@ -153,66 +155,39 @@ def _format_source_block(
     return "\n".join(lines)
 
 
-def _build_messages_from_sources(
+def _build_qwen_prompt(
         question: str,
-        retrieved_sources: list[dict[str, Any]],
-        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
-        config: GenerationConfig,
-) -> list[dict[str, str]]:
-    selected_sources = retrieved_sources[:config.top_context_chunks]
-    blocks: list[str] = []
-    for rank, source in enumerate(selected_sources, start=1):
-        entry = corpus_lookup.get(_source_key(source))
-        if entry is None:
-            continue
-        blocks.append(_format_source_block(source, entry, rank))
-
-    context = "\n\n".join(blocks)
-    user_prompt = (
+        context: str,
+) -> str:
+    return (
+        f"{QWEN_IM_START}system\n"
+        f"{SYSTEM_PROMPT}{QWEN_IM_END}\n"
+        f"{QWEN_IM_START}user\n"
         f"Question:\n{question}\n\n"
         f"Retrieved context:\n{context}\n\n"
-        "Answer the question using only the retrieved context."
+        "Answer with only the final answer, no reasoning.\n"
+        f"{QWEN_IM_END}\n"
+        f"{QWEN_IM_START}assistant\n"
     )
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
 
 
-def _build_messages(
-        question: str, results: list[SearchResult], config: GenerationConfig
-) -> list[dict[str, str]]:
-    selected = _select_context(results, config)
-    context = "\n\n".join(
-        _format_context_block(result, rank)
-        for rank, result in enumerate(selected, start=1)
-    )
-    user_prompt = (
-        f"Question:\n{question}\n\n"
-        f"Retrieved context:\n{context}\n\n"
-        "Answer the question using only the retrieved context."
-    )
-    return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
-
-
-def _call_openai_compatible_chat(
+def _call_openai_compatible_completion(
         *,
         model: str,
-        messages: list[dict[str, str]],
+        prompt: str,
         base_url: str,
         temperature: float,
         max_tokens: int,
         timeout_seconds: float,
 ) -> str:
-    url = f"{base_url.rstrip('/')}/chat/completions"
+    url = f"{base_url.rstrip('/')}/completions"
     payload = json.dumps({
         "model": model,
-        "messages": messages,
+        "prompt": prompt,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "stop": [QWEN_IM_END],
+        "top_p": 1.0,
         "stream": False,
     }).encode("utf-8")
     request = Request(
@@ -249,11 +224,13 @@ def _call_openai_compatible_chat(
         )
 
     choice = choices[0]
-    message = choice.get("message", {})
-    content = message.get("content")
+    content = choice.get("text")
+    if not isinstance(content, str):
+        message = choice.get("message", {})
+        content = message.get("content")
     if not isinstance(content, str):
         raise RuntimeError(
-            f"Missing message content in vLLM response: {response_payload}"
+            f"Missing completion content in vLLM response: {response_payload}"
         )
 
     return content.strip()
@@ -267,10 +244,15 @@ def generate_answer(
 ) -> GeneratedAnswer:
     question_id = str(question.get("question_id", ""))
     question_str = str(question.get("question", ""))
-    messages = _build_messages(question_str, results, config)
-    answer = _call_openai_compatible_chat(
+    selected = _select_context(results, config)
+    context = "\n\n".join(
+        _format_context_block(result, rank)
+        for rank, result in enumerate(selected, start=1)
+    )
+    prompt = _build_qwen_prompt(question_str, context)
+    answer = _call_openai_compatible_completion(
         model=config.model,
-        messages=messages,
+        prompt=prompt,
         base_url=config.base_url,
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -300,15 +282,18 @@ def generate_answer_from_sources(
         corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
         config: GenerationConfig,
 ) -> GeneratedAnswer:
-    messages = _build_messages_from_sources(
-        question_str,
-        retrieved_sources,
-        corpus_lookup,
-        config,
-    )
-    answer = _call_openai_compatible_chat(
+    selected_sources = retrieved_sources[:config.top_context_chunks]
+    blocks: list[str] = []
+    for rank, source in enumerate(selected_sources, start=1):
+        entry = corpus_lookup.get(_source_key(source))
+        if entry is None:
+            continue
+        blocks.append(_format_source_block(source, entry, rank))
+
+    prompt = _build_qwen_prompt(question_str, "\n\n".join(blocks))
+    answer = _call_openai_compatible_completion(
         model=config.model,
-        messages=messages,
+        prompt=prompt,
         base_url=config.base_url,
         temperature=config.temperature,
         max_tokens=config.max_tokens,
