@@ -28,12 +28,33 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://projects.intra.42.fr/rag-against-the-machine/mboutte"
 
+[project.scripts]
+rag = "cli:main"
+student = "student:main"
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = [
+    "ast_cleaninig",
+    "cli",
+    "generation",
+    "indexing",
+    "main",
+    "models",
+    "pipeline",
+    "retrieval",
+]
+
 [tool.mypy]
 mypy_path = "src"
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["bm25s_test", "indexing", "main", "retrieval"]
+module = ["bm25s_test", "cli", "indexing", "main", "retrieval"]
 disable_error_code = ["import-untyped"]
 
 [tool.uv]

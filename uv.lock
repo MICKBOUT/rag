@@ -427,7 +427,7 @@ wheels = [
 [[package]]
 name = "rag"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "bm25s", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "fire", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },

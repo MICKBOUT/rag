@@ -55,3 +55,31 @@ class SearchResult:
             "first_character_index": self.first_character_index,
             "last_character_index": self.last_character_index,
         }
+
+
+@dataclass(slots=True)
+class GeneratedAnswer:
+    question_id: str
+    question_str: str
+    answer: str
+    retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
+    model: str = ""
+    base_url: str = ""
+    temperature: float = 0.0
+    max_tokens: int = 0
+    search_k: int = 0
+    top_context_chunks: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "question_id": self.question_id,
+            "question_str": self.question_str,
+            "answer": self.answer,
+            "retrieved_sources": self.retrieved_sources,
+            "model": self.model,
+            "base_url": self.base_url,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "search_k": self.search_k,
+            "top_context_chunks": self.top_context_chunks,
+        }
