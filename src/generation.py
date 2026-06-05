@@ -165,7 +165,7 @@ def _build_qwen_prompt(
         f"{QWEN_IM_START}user\n"
         f"Question:\n{question}\n\n"
         f"Retrieved context:\n{context}\n\n"
-        "Answer with only the final answer, no reasoning.\n"
+        "Answer with only the final answer. /no_think\n"
         f"{QWEN_IM_END}\n"
         f"{QWEN_IM_START}assistant\n"
     )
@@ -232,6 +232,10 @@ def _call_openai_compatible_completion(
         raise RuntimeError(
             f"Missing completion content in vLLM response: {response_payload}"
         )
+
+    index = content.find("</think>")
+    if index >= 0:
+        content = content[index + 8:]
 
     return content.strip()
 
