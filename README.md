@@ -56,8 +56,8 @@ The CLI is exposed through Python Fire.
 ```bash
 uv run student index --max_chunk_size 2000
 uv run student search "What does the usage property return in vLLM's KV cache manager?" --k 10
-uv run student search_dataset data/datasets/public/UnansweredQuestions/dataset_docs_public.json --k 10
-uv run student evaluate data/output/search_results/dataset_docs_public.json data/datasets/public/AnsweredQuestions/dataset_docs_public.json
+uv run student search_dataset data/datasets/UnansweredQuestions/dataset_docs_public.json --k 10
+uv run student evaluate data/output/search_results/dataset_docs_public.json data/datasets/AnsweredQuestions/dataset_docs_public.json
 uv run student answer "What does the usage property return in vLLM's KV cache manager?" --model Qwen/Qwen3-0.6B
 uv run student answer_dataset data/output/search_results/dataset_docs_public.json --model Qwen/Qwen3-0.6B
 uv run student datasets
