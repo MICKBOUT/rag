@@ -127,8 +127,8 @@ class RAGCLI:
             max_context_chars: int = 12_000,
             temperature: float = 0.0,
             max_tokens: int = 256,
-            timeout_seconds: float = 60.0,
-            concurrency: int = 8,
+            timeout_seconds: float = 600.0,
+            concurrency: int = 1,
             checkpoint_interval: int = 1,
             save_directory: str = "data/output/search_results_and_answer",
     ) -> str:
