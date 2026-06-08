@@ -59,9 +59,10 @@ def search_dataset(
         *,
         k: int = 10,
         retriever: Any | None = None,
-        corpus: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        corpus: list[dict[str, Any]] | None = None,
+        max_chunk_size: int = 2000) -> dict[str, Any]:
     if retriever is None or corpus is None:
-        retriever, corpus = load_or_build_index()
+        retriever, corpus = load_or_build_index(max_chunk_size=max_chunk_size)
 
     questions = load_questions(dataset_path)
     search_results: list[dict[str, Any]] = []
@@ -97,12 +98,14 @@ def search_dataset_to_file(
         k: int = 10,
         output_dir: str | Path = DEFAULT_OUTPUT_DIR,
         retriever: Any | None = None,
-        corpus: list[dict[str, Any]] | None = None) -> Path:
+        corpus: list[dict[str, Any]] | None = None,
+        max_chunk_size: int = 2000) -> Path:
     payload = search_dataset(
         dataset_path,
         k=k,
         retriever=retriever,
         corpus=corpus,
+        max_chunk_size=max_chunk_size,
     )
     output_path = Path(output_dir) / Path(dataset_path).name
     return save_search_results(payload, output_path)

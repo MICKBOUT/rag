@@ -79,6 +79,7 @@ class RAGCLI:
             output_dir=save_directory,
             retriever=retriever,
             corpus=corpus,
+            max_chunk_size=max_chunk_size
         )
         return str(output_path)
 

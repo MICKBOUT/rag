@@ -37,6 +37,9 @@ def _limit_entry_text(
 
     limited_entry = dict(entry)
     limited_entry["text"] = text[:max_chunk_size].rstrip()
+    first = int(entry.get("first_character_index", 0))
+    limited_entry["last_character_index"] = first + len(
+        limited_entry["text"]) - 1
     return limited_entry
 
 
