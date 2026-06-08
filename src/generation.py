@@ -360,7 +360,7 @@ def answer_question(
     )
     results = search(question, retriever, corpus, k=config.search_k)
     generated = generate_answer(
-        {"question_id": "", "question": question},
+        {"question_id": "0", "question": question},
         results,
         config=config,
     )
