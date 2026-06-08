@@ -33,13 +33,18 @@ def _limit_entry_text(
         entry: dict[str, Any], max_chunk_size: int) -> dict[str, Any]:
     text = _entry_text(entry)
     if len(text) <= max_chunk_size:
-        return entry
+        first = int(entry.get("first_character_index", 0))
+        last = int(entry.get("last_character_index", 0))
+        if (last - first) <= max_chunk_size:
+            return entry
+        limited_entry = dict(entry)
+        limited_entry["last_character_index"] = first + max_chunk_size
+        return limited_entry
 
     limited_entry = dict(entry)
     limited_entry["text"] = text[:max_chunk_size].rstrip()
     first = int(entry.get("first_character_index", 0))
-    limited_entry["last_character_index"] = first + len(
-        limited_entry["text"]) - 1
+    limited_entry["last_character_index"] = first + max_chunk_size
     return limited_entry
 
 
