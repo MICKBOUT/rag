@@ -6,7 +6,7 @@ install:
 	uv sync
 
 run:
-	uv run $(MAIN)
+	uv run python -m student $(ARGS)
 
 
 evaluate_search_results:
