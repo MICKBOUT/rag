@@ -4,6 +4,7 @@ MAIN		= $(SRC_DIR)/main.py
 
 install:
 	uv sync
+	unzip data/raw/vllm-0.10.1.zip data/raw/.
 
 run:
 	uv run python -m student $(ARGS)

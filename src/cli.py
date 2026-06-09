@@ -196,8 +196,14 @@ class RAGCLI:
 def main() -> None:
     try:
         fire.Fire(RAGCLI)
+    except RuntimeError:
+        print(
+            "\033[91mError\033[0m:"
+            "the scripte has Time out, "
+            "try w/ a smaler input or increase the timeout"
+        )
     except ValueError as e:
-        print(f"\033[91mError\033[0m, {e}")
+        print(f"\033[91mError\033[0m: {e}")
     except FileNotFoundError as e:
         print("\033[91mERROR\033[0m: file needed to run the programe ->", e)
 
