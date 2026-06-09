@@ -194,7 +194,12 @@ class RAGCLI:
 
 
 def main() -> None:
-    fire.Fire(RAGCLI)
+    try:
+        fire.Fire(RAGCLI)
+    except ValueError as e:
+        print(f"\033[91mError\033[0m, {e}")
+    except FileNotFoundError as e:
+        print("\033[91mERROR\033[0m: file needed to run the programe ->", e)
 
 
 if __name__ == "__main__":
