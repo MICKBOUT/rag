@@ -9,6 +9,9 @@ install:
 run:
 	uv run python -m student $(ARGS)
 
+index:
+	uv run python -m student index
+
 evaluate_search_results:
 	uv run python -m student search_dataset --dataset_path data/datasets/private/UnansweredQuestions/dataset_docs_private.json --k 10 --save_directory data/output/search_results
 	./moulinette/moulinette_pkg/moulinette-ubuntu evaluate_student_search_results --student_answer_path data/output/search_results/dataset_docs_private.json --dataset_path data/datasets/private/AnsweredQuestions/dataset_docs_private.json --k 10 --max_context_length 2000
@@ -19,11 +22,11 @@ evaluate_code_results:
 
 recall_code:
 	uv run python -m student search_dataset --dataset_path data/datasets/private/UnansweredQuestions/dataset_code_private.json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	uv run python3 -m student evaluate data/output/search_results/dataset_code_private.json data/datasets/private/AnsweredQuestions/dataset_code_private.json
+	uv run python3 -m student evaluate data/output/search_results/dataset_code_private.json data/datasets/private/AnsweredQuestions/dataset_code_private.json --threshold 0.5
 
 recall_docs:
 	uv run python -m student search_dataset --dataset_path data/datasets/private/UnansweredQuestions/dataset_docs_private.json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	uv run python3 -m student evaluate data/output/search_results/dataset_docs_private.json data/datasets/private/AnsweredQuestions/dataset_docs_private.json
+	uv run python3 -m student evaluate data/output/search_results/dataset_docs_private.json data/datasets/private/AnsweredQuestions/dataset_docs_private.json --threshold 0.8
 
 answer_the_dataset:
 	uv run python -m student answer_dataset \

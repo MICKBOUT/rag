@@ -152,11 +152,13 @@ class RAGCLI:
             student_results_path: str,
             dataset_path: str,
             minimal_iou_threshold: float = 0.05,
+            threshold: float | None = None,
     ) -> dict[str, Any]:
         summary = evaluate_search_results(
             student_results_path,
             dataset_path,
             minimal_iou_threshold=minimal_iou_threshold,
+            threshold=threshold
         )
         return summary.to_dict()
 
