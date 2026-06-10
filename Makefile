@@ -26,7 +26,7 @@ recall_code:
 
 recall_docs:
 	uv run python -m student search_dataset --dataset_path data/datasets/private/UnansweredQuestions/dataset_docs_private.json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	uv run python3 -m student evaluate data/output/search_results/dataset_docs_private.json data/datasets/private/AnsweredQuestions/dataset_docs_private.json --threshold 0.8
+	uv run python3 -m student evaluate data/output/search_results/dataset_docs_private.json data/datasets/private/AnsweredQuestions/dataset_docs_private.json --threshold test
 
 answer_the_dataset:
 	uv run python -m student answer_dataset \
