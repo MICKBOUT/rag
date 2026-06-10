@@ -1,5 +1,5 @@
 # this line is here for know, maybe the model will be push later
-data/raw/
+data/raw/vllm-0.10.1
 data/processed
 data/output
 

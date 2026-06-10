@@ -4,7 +4,7 @@ MAIN		= $(SRC_DIR)/main.py
 
 install:
 	uv sync
-	unzip data/raw/vllm-0.10.1.zip data/raw/.
+	unzip data/raw/vllm-0.10.1.zip -d data/raw
 
 run:
 	uv run python -m student $(ARGS)
@@ -45,7 +45,7 @@ debug:
 clean:
 	@echo "cleaning project..."
 	@uv clean
-	@rm -rf $(VENV) bm25s_index_llm data/output/* data/processed/*
+	@rm -rf $(VENV) bm25s_index_llm data/output/* data/processed/* data/raw/vllm-0.10.1
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	@echo "Project clean"
