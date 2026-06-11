@@ -79,10 +79,17 @@ def load_chunks(
         )
 
     chunks: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
-        chunks.append(cast(dict[str, Any], json.loads(line)))
+        try:
+            chunks.append(cast(dict[str, Any], json.loads(line)))
+        except json.JSONDecodeError as e:
+            print(
+                f"\033[93mWarning\033[0m: skipping corrupt line {lineno} "
+                f"in {path}: {e}"
+            )
     return chunks
 
 

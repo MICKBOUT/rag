@@ -111,6 +111,9 @@ def _resolve_repo_path(path: str | Path) -> Path:
 def _char_span_from_lines(
         line_starts: list[int], lines: list[str],
         start_line: int, end_line: int) -> tuple[int, int]:
+    max_line = len(line_starts)
+    start_line = max(1, min(start_line, max_line))
+    end_line = max(start_line, min(end_line, max_line))
     start_offset = line_starts[start_line - 1]
     end_line_text = lines[end_line - 1].rstrip("\r\n")
     end_offset = line_starts[end_line - 1] + len(end_line_text) - 1
@@ -221,8 +224,12 @@ def get_ready_to_index_data(
 
         file_name_str = _display_path(Path(file_name))
 
-        with open(file=file_name, mode="r", encoding="utf-8") as f:
-            source = f.read()
+        try:
+            with open(file=file_name, mode="r", encoding="utf-8") as f:
+                source = f.read()
+        except (UnicodeDecodeError, OSError) as e:
+            print(f"\033[93mWarning\033[0m: skipping {file_name_str} ({e})")
+            return
         lines = source.splitlines()
         line_starts = [0]
         for match in re.finditer(r"\n", source):
@@ -458,4 +465,4 @@ def get_ready_to_index_data(
 
 
 if __name__ == "__main__":
-    get_ready_to_index_data()
+    get_ready_to_index_data("testfolder")

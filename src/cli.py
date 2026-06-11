@@ -296,6 +296,12 @@ class RAGCLI:
 def main() -> None:
     try:
         fire.Fire(RAGCLI)
+    except SyntaxError as e:  # when the parsed file has a syntaxError
+        print(
+            "\033[91mError\033[0m: "
+            "a syntax error has found when parsing the file -> "
+            f"{e}"
+              )
     except RuntimeError:
         print(
             "\033[91mError\033[0m: "

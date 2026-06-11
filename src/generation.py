@@ -369,9 +369,19 @@ def answer_question(
 
 def _load_search_results(
         student_search_results_path: str | Path) -> dict[str, Any]:
-    payload = json.loads(
-        Path(student_search_results_path).read_text(encoding="utf-8")
-    )
+    path = Path(student_search_results_path)
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as e:
+        raise RuntimeError(
+            f"Could not read search results file '{path}': {e}"
+        ) from e
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"Search results file '{path}' contains invalid JSON: {e}"
+        ) from e
     search_results = payload.get("search_results", [])
     if not isinstance(search_results, list):
         raise ValueError(
@@ -385,7 +395,14 @@ def _load_existing_answers(
     if not output_path.exists():
         return {}
 
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(
+            f"\033[93mWarning\033[0m: checkpoint file '{output_path}' is "
+            f"unreadable ({e}), starting from scratch."
+        )
+        return {}
     answers = payload.get("search_results", [])
     if not isinstance(answers, list):
         return {}
@@ -575,7 +592,22 @@ def _answer_student_items_with_resume(
                     total=len(future_to_index),
                     desc="Generating answers"):
                 index = future_to_index[future]
-                answers[index] = future.result()
+                try:
+                    answers[index] = future.result()
+                except Exception as e:
+                    question_id = str(items[index].get("question_id", index))
+                    print(
+                        f"\033[93mWarning\033[0m: failed to answer question "
+                        f"{question_id}: {e}"
+                    )
+                    answers[index] = {
+                        "question_id": question_id,
+                        "question_str": str(
+                            items[index].get("question_str", "")),
+                        "retrieved_sources": list(
+                            items[index].get("retrieved_sources") or []),
+                        "answer": f"[generation error: {e}]",
+                    }
                 completed += 1
                 if (
                     output_path is not None
