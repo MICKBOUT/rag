@@ -214,7 +214,7 @@ def get_ready_to_index_data(
     folder_root = _resolve_repo_path(folder_path)
 
     def get_ready_to_index_py_file(
-            file_name: str | Path = "src/test_file.py") -> None:
+            file_name: str | Path) -> None:
 
         file_name_str = _display_path(Path(file_name))
 

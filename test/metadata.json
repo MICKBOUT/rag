@@ -1,4 +1,0 @@
-{
-  "max_chunk_size": 2000,
-  "folder_path": "data/raw/vllm-0.10.1"
-}
