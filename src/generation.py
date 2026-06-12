@@ -16,7 +16,6 @@ from retrieval import search
 
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
-DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_SEARCH_K = 10
 DEFAULT_TOP_CONTEXT_CHUNKS = 3
@@ -40,7 +39,6 @@ SYSTEM_PROMPT = (
 class GenerationConfig:
     model: str
     base_url: str = DEFAULT_BASE_URL
-    temperature: float = DEFAULT_TEMPERATURE
     max_tokens: int = DEFAULT_MAX_TOKENS
     search_k: int = DEFAULT_SEARCH_K
     top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS
@@ -176,7 +174,6 @@ def _call_openai_compatible_completion(
         model: str,
         prompt: str,
         base_url: str,
-        temperature: float,
         max_tokens: int,
         timeout_seconds: float,
 ) -> str:
@@ -184,7 +181,6 @@ def _call_openai_compatible_completion(
     payload = json.dumps({
         "model": model,
         "prompt": prompt,
-        "temperature": temperature,
         "max_tokens": max_tokens,
         "stop": [QWEN_IM_END],
         "top_p": 1.0,
@@ -258,7 +254,6 @@ def generate_answer(
         model=config.model,
         prompt=prompt,
         base_url=config.base_url,
-        temperature=config.temperature,
         max_tokens=config.max_tokens,
         timeout_seconds=config.timeout_seconds,
     )
@@ -271,7 +266,6 @@ def generate_answer(
         ],
         model=config.model,
         base_url=config.base_url,
-        temperature=config.temperature,
         max_tokens=config.max_tokens,
         search_k=config.search_k,
         top_context_chunks=config.top_context_chunks,
@@ -299,7 +293,6 @@ def generate_answer_from_sources(
         model=config.model,
         prompt=prompt,
         base_url=config.base_url,
-        temperature=config.temperature,
         max_tokens=config.max_tokens,
         timeout_seconds=config.timeout_seconds,
     )
@@ -310,7 +303,6 @@ def generate_answer_from_sources(
         retrieved_sources=list(retrieved_sources[:config.search_k]),
         model=config.model,
         base_url=config.base_url,
-        temperature=config.temperature,
         max_tokens=config.max_tokens,
         search_k=config.search_k,
         top_context_chunks=config.top_context_chunks,
@@ -339,7 +331,6 @@ def answer_question(
         search_k: int = DEFAULT_SEARCH_K,
         top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
         max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
-        temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         retriever: Any | None = None,
@@ -351,7 +342,6 @@ def answer_question(
     config = GenerationConfig(
         model=_resolve_model(model),
         base_url=base_url,
-        temperature=temperature,
         max_tokens=max_tokens,
         search_k=search_k,
         top_context_chunks=top_context_chunks,
@@ -424,7 +414,6 @@ def answer_dataset(
         base_url: str = DEFAULT_BASE_URL,
         top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
         max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
-        temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         concurrency: int = DEFAULT_CONCURRENCY,
@@ -452,7 +441,6 @@ def answer_dataset(
     config = GenerationConfig(
         model=_resolve_model(model),
         base_url=base_url,
-        temperature=temperature,
         max_tokens=max_tokens,
         top_context_chunks=top_context_chunks,
         max_context_chars=max_context_chars,
@@ -497,35 +485,6 @@ def _answer_student_item(
         "retrieved_sources": generated.retrieved_sources,
         "answer": generated.answer,
     }
-
-
-def _answer_student_items_concurrently(
-        items: list[dict[str, Any]],
-        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
-        config: GenerationConfig,
-        *,
-        concurrency: int,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any] | None] = [None] * len(items)
-    worker_count = max(1, concurrency)
-    with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        future_to_index = {
-            executor.submit(
-                _answer_student_item,
-                item,
-                corpus_lookup,
-                config,
-            ): index
-            for index, item in enumerate(items)
-        }
-        for future in tqdm(
-                as_completed(future_to_index),
-                total=len(future_to_index),
-                desc="Generating answers"):
-            index = future_to_index[future]
-            results[index] = future.result()
-
-    return [result for result in results if result is not None]
 
 
 def _answer_student_items_with_resume(
@@ -658,7 +617,6 @@ def answer_dataset_to_file(
         base_url: str = DEFAULT_BASE_URL,
         top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
         max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
-        temperature: float = DEFAULT_TEMPERATURE,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         concurrency: int = DEFAULT_CONCURRENCY,
@@ -672,7 +630,6 @@ def answer_dataset_to_file(
         base_url=base_url,
         top_context_chunks=top_context_chunks,
         max_context_chars=max_context_chars,
-        temperature=temperature,
         max_tokens=max_tokens,
         timeout_seconds=timeout_seconds,
         concurrency=concurrency,

@@ -30,10 +30,11 @@ recall_docs:
 	uv run python3 -m student evaluate data/output/search_results/dataset_docs_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json --threshold 0.8
 
 answer_the_dataset:
+	uv run python -m student search_dataset data/datasets/public/UnansweredQuestions/dataset_docs_public.json \
+		--save_directory data/output/search_results
 	uv run python -m student answer_dataset \
 		--student_search_results_path data/output/search_results/dataset_docs_public.json \
-		--save_directory data/output/search_results_and_answer \
-		# --max_tokens 128
+		--save_directory data/output/search_results_and_answer
 
 
 lint: 

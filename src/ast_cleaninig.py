@@ -7,10 +7,8 @@ from typing import Any
 from tqdm import tqdm
 
 
-INCLUDE_RE = re.compile(r'^\s*--8<--\s+"(?P<target>[^"]+)"\s*$')
 MARKER_RE = re.compile(
-    r'^\s*(?:<!--\s*|#\s*)?--8<--\s*'
-    r'\[(?P<kind>start|end):(?P<name>[^\]]+)\]\s*(?:-->)?\s*$'
+    r'^\s*(?:)?\s*$'
 )
 HEADING_RE = re.compile(r'^(?P<hashes>#{1,6})\s+(?P<title>.+?)\s*$')
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -45,7 +43,6 @@ class ContextualParser(ast.NodeVisitor):
             'calls': calls or [],
         })
 
-    # fix 3 — collect every function/method name called inside a node's body
     def _extract_calls(self, node: Any) -> list[str]:
         calls = []
         for child in ast.walk(node):
@@ -54,7 +51,7 @@ class ContextualParser(ast.NodeVisitor):
                     calls.append(child.func.id)
                 elif isinstance(child.func, ast.Attribute):
                     calls.append(child.func.attr)
-        return list(dict.fromkeys(calls))  # deduplicate, preserve order
+        return list(dict.fromkeys(calls))
 
     def visit_ClassDef(self, node: Any) -> None:
         self.stack.append(('class', node.name))
@@ -280,20 +277,6 @@ def get_ready_to_index_data(
                 break
         return start_line, end_line
 
-    def _resolve_markdown_target(
-            current_file: Path,
-            raw_target: str,
-            repo_root: Path) -> tuple[Path, str | None]:
-        target_path, _, anchor = raw_target.partition(":")
-        resolved = Path(target_path)
-        if not resolved.is_absolute():
-            root_candidate = (repo_root / target_path).resolve()
-            if root_candidate.exists():
-                resolved = root_candidate
-            else:
-                resolved = (current_file.parent / target_path).resolve()
-        return resolved, anchor or None
-
     _MD_WINDOW = 1000
     _MD_STRIDE = 500
 
@@ -301,7 +284,6 @@ def get_ready_to_index_data(
             lines: list[str],
             line_starts: list[int],
             char_offset: int) -> list[str]:
-        """Active heading breadcrumb (all levels) at a given char offset."""
         active: list[str] = []
         for line_no, line in enumerate(lines, start=1):
             if line_starts[line_no - 1] >= char_offset:
@@ -322,12 +304,6 @@ def get_ready_to_index_data(
             end_line: int,
             inherited_headings: list[str],
     ) -> list[IndexChunk]:
-        """Overlapping fixed-size chunks over the source char range.
-
-        Span indices point into the *source file* directly — the
-        FILE:/HEADING: prefix added to the BM25 text is NOT counted in
-        first/last_character_index, so IoU against gold spans is accurate.
-        """
         if not lines:
             return []
 
@@ -349,7 +325,6 @@ def get_ready_to_index_data(
         while pos < total:
             win_end = min(pos + window, total)
 
-            # Snap to end of current line to avoid cutting mid-sentence
             newline_pos = source_slice.find("\n", win_end)
             if newline_pos != -1 and newline_pos < win_end + 120:
                 win_end = newline_pos + 1
@@ -394,18 +369,14 @@ def get_ready_to_index_data(
 
     def _get_ready_to_index_md_file(
             file_name: str | Path,
-            repo_root: Path,
             inherited_headings: list[str] | None = None,
-            anchor: str | None = None,
-            active_stack: set[tuple[Path, str | None]] | None = None,
     ) -> list[IndexChunk]:
         file_path = Path(file_name).resolve()
         if inherited_headings is None:
             inherited_headings = []
-        if active_stack is None:
-            active_stack = set()
+        active_stack = set()
 
-        visit_key = (file_path, anchor)
+        visit_key = (file_path, None)
         if visit_key in active_stack:
             return []
         active_stack.add(visit_key)
@@ -420,7 +391,7 @@ def get_ready_to_index_data(
                 return []
 
             line_starts = _line_starts(source)
-            start_line, end_line = _anchor_bounds(source, anchor)
+            start_line, end_line = _anchor_bounds(source, None)
             lines = source.splitlines(keepends=True)
             if not lines:
                 return []

@@ -9,7 +9,6 @@ from indexing import build_and_save_index, load_or_build_index
 from pipeline import evaluate_search_results, search_dataset_to_file
 from retrieval import search
 
-
 DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
 
 

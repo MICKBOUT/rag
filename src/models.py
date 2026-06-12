@@ -65,7 +65,6 @@ class GeneratedAnswer:
     retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
     model: str = ""
     base_url: str = ""
-    temperature: float = 0.0
     max_tokens: int = 0
     search_k: int = 0
     top_context_chunks: int = 0
@@ -78,7 +77,6 @@ class GeneratedAnswer:
             "retrieved_sources": self.retrieved_sources,
             "model": self.model,
             "base_url": self.base_url,
-            "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "search_k": self.search_k,
             "top_context_chunks": self.top_context_chunks,
