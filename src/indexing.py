@@ -29,22 +29,39 @@ def _entry_text(entry: dict[str, Any]) -> str:
     return str(entry.get("text", ""))
 
 
+def _source_span_length(entry: dict[str, Any]) -> int:
+    """Return the actual source span length, independent of BM25 text length.
+
+    Markdown chunks prepend a FILE:/HEADING: prefix to their BM25 text, so
+    len(text) > span length.  Using len(text) to clip last_character_index
+    would corrupt IoU calculations.  We use the span directly instead.
+    """
+    first = int(entry.get("first_character_index", 0))
+    last = int(entry.get("last_character_index", 0))
+    return max(0, last - first)
+
+
 def _limit_entry_text(
         entry: dict[str, Any], max_chunk_size: int) -> dict[str, Any]:
     text = _entry_text(entry)
-    if len(text) <= max_chunk_size:
-        first = int(entry.get("first_character_index", 0))
-        last = int(entry.get("last_character_index", 0))
-        if (last - first) <= max_chunk_size:
-            return entry
-        limited_entry = dict(entry)
-        limited_entry["last_character_index"] = first + max_chunk_size
-        return limited_entry
+    span_length = _source_span_length(entry)
+
+    # If both the text and the source span fit within the limit, keep as-is.
+    if len(text) <= max_chunk_size and span_length <= max_chunk_size:
+        return entry
 
     limited_entry = dict(entry)
-    limited_entry["text"] = text[:max_chunk_size].rstrip()
-    first = int(entry.get("first_character_index", 0))
-    limited_entry["last_character_index"] = first + max_chunk_size
+
+    # Truncate BM25 text if it exceeds the limit.
+    if len(text) > max_chunk_size:
+        limited_entry["text"] = text[:max_chunk_size].rstrip()
+
+    # Only clip the span when the *source span* itself exceeds the limit
+    # (not when it is the prefix that pushed len(text) over the threshold).
+    if span_length > max_chunk_size:
+        first = int(entry.get("first_character_index", 0))
+        limited_entry["last_character_index"] = first + max_chunk_size
+
     return limited_entry
 
 
@@ -79,17 +96,10 @@ def load_chunks(
         )
 
     chunks: list[dict[str, Any]] = []
-    for lineno, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        try:
-            chunks.append(cast(dict[str, Any], json.loads(line)))
-        except json.JSONDecodeError as e:
-            print(
-                f"\033[93mWarning\033[0m: skipping corrupt line {lineno} "
-                f"in {path}: {e}"
-            )
+        chunks.append(cast(dict[str, Any], json.loads(line)))
     return chunks
 
 

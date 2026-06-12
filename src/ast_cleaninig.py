@@ -111,9 +111,6 @@ def _resolve_repo_path(path: str | Path) -> Path:
 def _char_span_from_lines(
         line_starts: list[int], lines: list[str],
         start_line: int, end_line: int) -> tuple[int, int]:
-    max_line = len(line_starts)
-    start_line = max(1, min(start_line, max_line))
-    end_line = max(start_line, min(end_line, max_line))
     start_offset = line_starts[start_line - 1]
     end_line_text = lines[end_line - 1].rstrip("\r\n")
     end_offset = line_starts[end_line - 1] + len(end_line_text) - 1
@@ -224,12 +221,8 @@ def get_ready_to_index_data(
 
         file_name_str = _display_path(Path(file_name))
 
-        try:
-            with open(file=file_name, mode="r", encoding="utf-8") as f:
-                source = f.read()
-        except (UnicodeDecodeError, OSError) as e:
-            print(f"\033[93mWarning\033[0m: skipping {file_name_str} ({e})")
-            return
+        with open(file=file_name, mode="r", encoding="utf-8") as f:
+            source = f.read()
         lines = source.splitlines()
         line_starts = [0]
         for match in re.finditer(r"\n", source):
@@ -301,48 +294,103 @@ def get_ready_to_index_data(
                 resolved = (current_file.parent / target_path).resolve()
         return resolved, anchor or None
 
-    def _flush_markdown_chunk(
-            file_name: Path,
-            current_lines: list[tuple[int, str]],
-            local_headings: list[str],
+    _MD_WINDOW = 1000
+    _MD_STRIDE = 500
+
+    def _heading_at_offset(
+            lines: list[str],
+            line_starts: list[int],
+            char_offset: int) -> list[str]:
+        """Active heading breadcrumb (all levels) at a given char offset."""
+        active: list[str] = []
+        for line_no, line in enumerate(lines, start=1):
+            if line_starts[line_no - 1] >= char_offset:
+                break
+            m = HEADING_RE.match(line)
+            if m:
+                level = len(m.group("hashes"))
+                title = m.group("title").strip()
+                active = active[:level - 1] + [title]
+        return active
+
+    def _sliding_window_md_chunks(
+            file_path: Path,
+            source: str,
+            line_starts: list[int],
+            lines: list[str],
+            start_line: int,
+            end_line: int,
             inherited_headings: list[str],
-            line_starts: list[int]) -> list[IndexChunk]:
-        if not current_lines:
-            return []
-        non_empty_positions = [
-            index for index, (_, line) in enumerate(current_lines)
-            if line.strip()
-        ]
-        if not non_empty_positions:
+    ) -> list[IndexChunk]:
+        """Overlapping fixed-size chunks over the source char range.
+
+        Span indices point into the *source file* directly — the
+        FILE:/HEADING: prefix added to the BM25 text is NOT counted in
+        first/last_character_index, so IoU against gold spans is accurate.
+        """
+        if not lines:
             return []
 
-        start_pos = non_empty_positions[0]
-        end_pos = non_empty_positions[-1]
-        start_line_no = current_lines[start_pos][0]
-        end_line_no = current_lines[end_pos][0]
-        start_offset = line_starts[start_line_no - 1]
-        end_line_text = current_lines[end_pos][1].rstrip("\r\n")
-        end_offset = line_starts[end_line_no - 1] + len(end_line_text) - 1
-        body = "".join(
-            line for _, line in current_lines[start_pos:end_pos + 1]
-            if line.strip()
-        ).strip()
-        heading_path = _build_heading_path(inherited_headings, local_headings)
-        text = body
-        if heading_path:
-            text = (
-                f"FILE: {_display_path(file_name)}\n"
-                f"HEADING: {' > '.join(heading_path)}\n\n"
-                f"{body}"
+        file_str = _display_path(file_path)
+        range_start = line_starts[start_line - 1]
+        last_line_text = lines[end_line - 1].rstrip("\r\n")
+        range_end = line_starts[end_line - 1] + len(last_line_text)
+
+        source_slice = source[range_start:range_end]
+        if not source_slice.strip():
+            return []
+
+        chunks: list[IndexChunk] = []
+        window = _MD_WINDOW
+        stride = _MD_STRIDE
+        pos = 0
+        total = len(source_slice)
+
+        while pos < total:
+            win_end = min(pos + window, total)
+
+            # Snap to end of current line to avoid cutting mid-sentence
+            newline_pos = source_slice.find("\n", win_end)
+            if newline_pos != -1 and newline_pos < win_end + 120:
+                win_end = newline_pos + 1
+
+            chunk_text = source_slice[pos:win_end]
+            if not chunk_text.strip():
+                pos += stride
+                continue
+
+            abs_start = range_start + pos
+            abs_end = range_start + win_end - 1
+
+            heading_path = _build_heading_path(
+                inherited_headings,
+                _heading_at_offset(lines, line_starts, abs_start),
             )
-        return [IndexChunk(
-            text=text,
-            file_path=_display_path(file_name),
-            first_character_index=start_offset,
-            last_character_index=end_offset,
-            kind='markdown',
-            heading_path=heading_path,
-        )]
+
+            _sep = " > "
+            if heading_path:
+                bm25_text = (
+                    "FILE: " + file_str + "\n"
+                    "HEADING: " + _sep.join(heading_path) + "\n\n"
+                    + chunk_text.strip()
+                )
+            else:
+                bm25_text = "FILE: " + file_str + "\n\n" + chunk_text.strip()
+
+            chunks.append(IndexChunk(
+                text=bm25_text,
+                file_path=file_str,
+                first_character_index=abs_start,
+                last_character_index=abs_end,
+                kind='markdown',
+                heading_path=heading_path,
+            ))
+
+            if win_end >= total:
+                break
+            pos += stride
+
+        return chunks
 
     def _get_ready_to_index_md_file(
             file_name: str | Path,
@@ -377,74 +425,15 @@ def get_ready_to_index_data(
             if not lines:
                 return []
 
-            result: list[IndexChunk] = []
-            current_lines: list[tuple[int, str]] = []
-            local_headings: list[str] = []
-            in_code_fence = False
-            fence_token = ""
-
-            def flush_current() -> None:
-                nonlocal current_lines
-                result.extend(
-                    _flush_markdown_chunk(
-                        file_path,
-                        current_lines,
-                        local_headings,
-                        inherited_headings,
-                        line_starts,
-                    )
-                )
-                current_lines = []
-
-            for line_no in range(start_line, end_line + 1):
-                line = lines[line_no - 1]
-                stripped = line.strip()
-
-                if stripped.startswith(("```", "~~~")):
-                    if not in_code_fence:
-                        in_code_fence = True
-                        fence_token = stripped[:3]
-                    elif stripped.startswith(fence_token):
-                        in_code_fence = False
-                    current_lines.append((line_no, line))
-                    continue
-
-                if not in_code_fence:
-                    include_match = INCLUDE_RE.match(line)
-                    if include_match is not None:
-                        flush_current()
-                        target, target_anchor = _resolve_markdown_target(
-                            file_path,
-                            include_match.group("target"),
-                            repo_root,
-                        )
-                        result.extend(_get_ready_to_index_md_file(
-                            target,
-                            repo_root,
-                            inherited_headings=_build_heading_path(
-                                inherited_headings, local_headings),
-                            anchor=target_anchor,
-                            active_stack=active_stack,
-                        ))
-                        continue
-
-                    marker_match = MARKER_RE.match(line)
-                    if marker_match is not None:
-                        continue
-
-                    heading_match = HEADING_RE.match(line)
-                    if heading_match is not None:
-                        flush_current()
-                        level = len(heading_match.group("hashes"))
-                        title = heading_match.group("title").strip()
-                        local_headings = local_headings[:level - 1] + [title]
-                        current_lines.append((line_no, line))
-                        continue
-
-                current_lines.append((line_no, line))
-
-            flush_current()
-            return result
+            return _sliding_window_md_chunks(
+                file_path,
+                source,
+                line_starts,
+                lines,
+                start_line,
+                end_line,
+                inherited_headings,
+            )
         finally:
             active_stack.remove(visit_key)
 
@@ -465,4 +454,4 @@ def get_ready_to_index_data(
 
 
 if __name__ == "__main__":
-    get_ready_to_index_data("testfolder")
+    get_ready_to_index_data()

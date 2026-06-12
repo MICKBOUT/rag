@@ -5,6 +5,8 @@ import bm25s
 
 from models import SearchResult
 
+_STOPWORDS = "en"
+
 
 def _resolve_entry(
         raw: Any, corpus: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -18,7 +20,7 @@ def search(
         retriever: bm25s.BM25,
         corpus: Sequence[dict[str, Any]],
         k: int = 5) -> list[SearchResult]:
-    query_tokens = bm25s.tokenize(query)
+    query_tokens = bm25s.tokenize(query, stopwords=_STOPWORDS)
     docs, scores = retriever.retrieve(query_tokens, k=k)
 
     results: list[SearchResult] = []
