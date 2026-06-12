@@ -37,8 +37,11 @@ answer_the_dataset:
 		--save_directory data/output/search_results_and_answer \
 		--model Qwen/Qwen3-0.6B
 
+answer_model_2:
+	uv run python -m student answer "What's the default value of trust_remote_code in vLLM's LLM class constructor?" --model Qwen/Qwen3-1.7B
 
-lint: 
+
+lint:
 	uv run flake8 $(SRC_DIR)
 	uv run mypy --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
