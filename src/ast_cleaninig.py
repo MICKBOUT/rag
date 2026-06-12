@@ -419,7 +419,7 @@ def get_ready_to_index_data(
     ]
     for file in tqdm(md_files, "Parsing markdown files"):
         clean_data_lst.extend(
-            _get_ready_to_index_md_file(file, docs_root))
+            _get_ready_to_index_md_file(file))
 
     return [chunk.to_record() for chunk in clean_data_lst]
 

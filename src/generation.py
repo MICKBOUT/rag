@@ -1,5 +1,4 @@
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -19,13 +18,13 @@ DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_SEARCH_K = 10
 DEFAULT_TOP_CONTEXT_CHUNKS = 3
-DEFAULT_MAX_CONTEXT_CHARS = 12_000
 DEFAULT_MAX_CHUNK_CHARS = 2_000
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_CONCURRENCY = 8
 DEFAULT_CHECKPOINT_INTERVAL = 1
 QWEN_IM_START = "<|im_start|>"
 QWEN_IM_END = "<|im_end|>"
+DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
 
 SYSTEM_PROMPT = (
     "You answer questions about the vLLM repository using only the provided "
@@ -37,12 +36,11 @@ SYSTEM_PROMPT = (
 
 @dataclass(slots=True)
 class GenerationConfig:
-    model: str
+    model: str = DEFAULT_MODEL
     base_url: str = DEFAULT_BASE_URL
     max_tokens: int = DEFAULT_MAX_TOKENS
     search_k: int = DEFAULT_SEARCH_K
     top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS
-    max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
 
     def to_dict(self) -> dict[str, Any]:
@@ -68,8 +66,6 @@ def _select_context(
 
         chunk_text = _truncate_text(result.text, DEFAULT_MAX_CHUNK_CHARS)
         projected = total_chars + len(chunk_text)
-        if selected and projected > config.max_context_chars:
-            break
 
         selected.append(result)
         total_chars = projected
@@ -309,28 +305,13 @@ def generate_answer_from_sources(
     )
 
 
-def _resolve_model(model: str | None) -> str:
-    if model:
-        return model
-
-    env_model = os.environ.get("VLLM_MODEL")
-    if env_model:
-        return env_model
-
-    raise ValueError(
-        "No model provided. Pass model=... or set the VLLM_MODEL "
-        "environment variable."
-    )
-
-
 def answer_question(
         question: str,
         *,
-        model: str | None = None,
+        model: str = DEFAULT_MODEL,
         base_url: str = DEFAULT_BASE_URL,
         search_k: int = DEFAULT_SEARCH_K,
         top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-        max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         retriever: Any | None = None,
@@ -340,12 +321,11 @@ def answer_question(
         retriever, corpus = load_or_build_index()
 
     config = GenerationConfig(
-        model=_resolve_model(model),
+        model=model,
         base_url=base_url,
         max_tokens=max_tokens,
         search_k=search_k,
         top_context_chunks=top_context_chunks,
-        max_context_chars=max_context_chars,
         timeout_seconds=timeout_seconds,
     )
     results = search(question, retriever, corpus, k=config.search_k)
@@ -405,63 +385,6 @@ def _load_existing_answers(
         if question_id:
             existing[question_id] = item
     return existing
-
-
-def answer_dataset(
-        student_search_results_path: str | Path,
-        *,
-        model: str | None = None,
-        base_url: str = DEFAULT_BASE_URL,
-        top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-        max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        concurrency: int = DEFAULT_CONCURRENCY,
-        checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
-        output_path: str | Path | None = None,
-        retriever: Any | None = None,
-        corpus: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    payload = _load_search_results(student_search_results_path)
-    search_results = list(payload.get("search_results", []))
-    if corpus is None:
-        try:
-            corpus = load_chunks()
-        except FileNotFoundError:
-            _, corpus = load_or_build_index()
-
-    corpus_lookup = _build_corpus_lookup(corpus)
-    output_path_obj = Path(output_path) if output_path is not None else None
-    existing_answers = (
-        _load_existing_answers(output_path_obj)
-        if output_path_obj is not None
-        else {}
-    )
-
-    config = GenerationConfig(
-        model=_resolve_model(model),
-        base_url=base_url,
-        max_tokens=max_tokens,
-        top_context_chunks=top_context_chunks,
-        max_context_chars=max_context_chars,
-        timeout_seconds=timeout_seconds,
-    )
-
-    answers = _answer_student_items_with_resume(
-        search_results,
-        corpus_lookup,
-        config,
-        existing_answers=existing_answers,
-        concurrency=concurrency,
-        checkpoint_interval=max(1, checkpoint_interval),
-        output_path=output_path_obj,
-        base_payload=payload,
-    )
-
-    return {
-        "search_results": answers,
-        "k": int(payload.get("k", config.search_k)),
-    }
 
 
 def _answer_student_item(
@@ -613,10 +536,9 @@ def answer_dataset_to_file(
         student_search_results_path: str | Path,
         *,
         output_dir: str | Path = DEFAULT_OUTPUT_DIR,
-        model: str | None = None,
+        model: str = DEFAULT_MODEL,
         base_url: str = DEFAULT_BASE_URL,
         top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-        max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         concurrency: int = DEFAULT_CONCURRENCY,
@@ -624,17 +546,40 @@ def answer_dataset_to_file(
         corpus: list[dict[str, Any]] | None = None,
 ) -> Path:
     output_path = Path(output_dir) / Path(student_search_results_path).name
-    answer_dataset(
-        student_search_results_path,
+
+    payload = _load_search_results(student_search_results_path)
+    search_results = list(payload.get("search_results", []))
+    if corpus is None:
+        try:
+            corpus = load_chunks()
+        except FileNotFoundError:
+            _, corpus = load_or_build_index()
+
+    corpus_lookup = _build_corpus_lookup(corpus)
+    output_path_obj = Path(output_path) if output_path is not None else None
+    existing_answers = (
+        _load_existing_answers(output_path_obj)
+        if output_path_obj is not None
+        else {}
+    )
+
+    config = GenerationConfig(
         model=model,
         base_url=base_url,
-        top_context_chunks=top_context_chunks,
-        max_context_chars=max_context_chars,
         max_tokens=max_tokens,
+        top_context_chunks=top_context_chunks,
         timeout_seconds=timeout_seconds,
-        concurrency=concurrency,
-        checkpoint_interval=checkpoint_interval,
-        output_path=output_path,
-        corpus=corpus,
     )
+
+    _answer_student_items_with_resume(
+        search_results,
+        corpus_lookup,
+        config,
+        existing_answers=existing_answers,
+        concurrency=concurrency,
+        checkpoint_interval=max(1, checkpoint_interval),
+        output_path=output_path_obj,
+        base_payload=payload,
+    )
+
     return output_path

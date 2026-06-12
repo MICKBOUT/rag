@@ -15,10 +15,6 @@ _MAX_CHUNK_SIZE_FIELD = Field(
     default=2000, ge=1, le=100_000,
     description="Maximum chunk size in characters"
 )
-_TEMPERATURE_FIELD = Field(
-    default=0.0, ge=0.0, le=2.0,
-    description="Sampling temperature (0.0-2.0)"
-)
 _MAX_TOKENS_FIELD = Field(
     default=256, ge=1, le=32_768,
     description="Maximum tokens to generate (1-32768)"
@@ -26,10 +22,6 @@ _MAX_TOKENS_FIELD = Field(
 _TOP_CONTEXT_CHUNKS_FIELD = Field(
     default=3, ge=1, le=50,
     description="Number of context chunks (1-50)"
-)
-_MAX_CONTEXT_CHARS_FIELD = Field(
-    default=12_000, ge=100, le=200_000,
-    description="Max context characters (100-200000)"
 )
 _TIMEOUT_FIELD = Field(
     default=60.0, gt=0.0, le=3600.0,
@@ -59,8 +51,6 @@ class AnswerParams(BaseModel):
     model: str = "Qwen/Qwen3-0.6B"
     base_url: str = "http://localhost:8000/v1"
     top_context_chunks: int = _TOP_CONTEXT_CHUNKS_FIELD
-    max_context_chars: int = _MAX_CONTEXT_CHARS_FIELD
-    temperature: float = _TEMPERATURE_FIELD
     max_tokens: int = _MAX_TOKENS_FIELD
     timeout_seconds: float = _TIMEOUT_FIELD
     folder_path: str = "data/raw/vllm-0.10.1"

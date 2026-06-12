@@ -234,12 +234,6 @@ def evaluate_search_results(
 
     print("Evaluation Results")
     print("========================================")
-    print(f"Questions evaluated: {summary.questions_evaluated}")
-    print(f"Questions with sources: {summary.questions_with_sources}")
-    print(f"Recall@1: {summary.recall_at_1:.3f}")
-    print(f"Recall@3: {summary.recall_at_3:.3f}")
-    print(f"Recall@5: {summary.recall_at_5:.3f}")
-    print(f"Recall@10: {summary.recall_at_10:.3f}")
     if threshold is not None:
         status = "PASS" if summary.passed else "FAIL"
         print(f"{status} (threshold={threshold:.2f})")

@@ -4,12 +4,10 @@ from typing import Any
 
 import fire
 
-from generation import answer_dataset_to_file, answer_question
+from generation import answer_dataset_to_file, answer_question, DEFAULT_MODEL
 from indexing import build_and_save_index, load_or_build_index
 from pipeline import evaluate_search_results, search_dataset_to_file
 from retrieval import search
-
-DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
 
 
 class RAGCLI:
@@ -89,8 +87,6 @@ class RAGCLI:
             model: str = DEFAULT_MODEL,
             base_url: str = "http://localhost:8000/v1",
             top_context_chunks: int = 3,
-            max_context_chars: int = 12_000,
-            temperature: float = 0.0,
             max_tokens: int = 256,
             timeout_seconds: float = 60.0,
             folder_path: str = "data/raw/vllm-0.10.1",
@@ -108,8 +104,6 @@ class RAGCLI:
             base_url=base_url,
             search_k=k,
             top_context_chunks=top_context_chunks,
-            max_context_chars=max_context_chars,
-            temperature=temperature,
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
             retriever=retriever,
@@ -123,8 +117,6 @@ class RAGCLI:
             model: str = DEFAULT_MODEL,
             base_url: str = "http://localhost:8000/v1",
             top_context_chunks: int = 3,
-            max_context_chars: int = 12_000,
-            temperature: float = 0.0,
             max_tokens: int = 256,
             timeout_seconds: float = 600.0,
             concurrency: int = 1,
@@ -137,8 +129,6 @@ class RAGCLI:
             model=model,
             base_url=base_url,
             top_context_chunks=top_context_chunks,
-            max_context_chars=max_context_chars,
-            temperature=temperature,
             max_tokens=max_tokens,
             timeout_seconds=timeout_seconds,
             concurrency=concurrency,
