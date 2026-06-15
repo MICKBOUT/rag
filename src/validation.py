@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from pydantic import (
@@ -174,7 +176,7 @@ class AnswerParams(StrictBaseModel):
         return validate_existing_directory(value)
 
     @model_validator(mode="after")
-    def top_chunks_must_be_le_k(self):
+    def top_chunks_must_be_le_k(self) -> AnswerParams:
         if self.top_context_chunks > self.k:
             raise ValueError(
                 f"top_context_chunks ({self.top_context_chunks}) "

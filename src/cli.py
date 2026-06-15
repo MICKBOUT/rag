@@ -250,7 +250,6 @@ class RAGCLI:
         # Validate using Pydantic
         args = DatasetsParams(root=root)
         root_path = Path(args.root)
-        
         return {
             "root": str(root_path),
             "datasets": [
@@ -258,7 +257,6 @@ class RAGCLI:
                 for path in sorted(root_path.rglob("*.json"))
             ],
         }
-
 
 
 def main() -> None:

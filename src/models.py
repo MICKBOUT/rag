@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -21,7 +22,7 @@ class SearchResult:
             entry: dict[str, Any],
             *,
             rank: int,
-            score: float) -> "SearchResult":
+            score: float) -> SearchResult:
         return cls(
             rank=rank,
             score=score,
