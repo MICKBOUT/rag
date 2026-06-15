@@ -1,585 +1,210 @@
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, cast
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from typing import Any
+from typing import Sequence, Annotated
 
+import dspy
 from tqdm import tqdm
 
-from indexing import load_chunks, load_or_build_index
-from models import GeneratedAnswer, SearchResult
+from models import GeneratedAnswer
 from retrieval import search
-
 
 DEFAULT_BASE_URL = "http://localhost:8000/v1"
 DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_SEARCH_K = 10
 DEFAULT_TOP_CONTEXT_CHUNKS = 3
-DEFAULT_MAX_CHUNK_CHARS = 2_000
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_CONCURRENCY = 8
 DEFAULT_CHECKPOINT_INTERVAL = 1
-QWEN_IM_START = "<|im_start|>"
-QWEN_IM_END = "<|im_end|>"
 DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
 
-SYSTEM_PROMPT = (
-    "You answer questions about the vLLM repository using only the provided "
-    "context. Do not explain your reasoning, do not show chain of thought, "
-    "and do not invent details. Return only the final answer. If the "
-    "context is insufficient, say that you cannot find a supported answer."
-)
+DEFAULT_MAX_CHUNK_CHARS = 2_000
 
 
-@dataclass(slots=True)
-class GenerationConfig:
-    model: str = DEFAULT_MODEL
-    base_url: str = DEFAULT_BASE_URL
-    max_tokens: int = DEFAULT_MAX_TOKENS
-    search_k: int = DEFAULT_SEARCH_K
-    top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS
-    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-def _truncate_text(text: str, limit: int) -> str:
-    if len(text) <= limit:
-        return text
-    return text[: limit - 3].rstrip() + "..."
-
-
-def _select_context(
-        results: list[SearchResult],
-        config: GenerationConfig,
-) -> list[SearchResult]:
-    selected: list[SearchResult] = []
-    total_chars = 0
-
-    for result in results:
-        if len(selected) >= config.top_context_chunks:
-            break
-
-        chunk_text = _truncate_text(result.text, DEFAULT_MAX_CHUNK_CHARS)
-        projected = total_chars + len(chunk_text)
-
-        selected.append(result)
-        total_chars = projected
-
-    return selected
-
-
-def _format_context_block(result: SearchResult, rank: int) -> str:
-    heading = " > ".join(result.heading_path) if result.heading_path else ""
-    calls = ", ".join(result.calls) if result.calls else ""
-    lines = [
-        f"[{rank}] FILE: {result.file_path}",
-        (
-            "SPAN: "
-            f"{result.first_character_index}-{result.last_character_index}"
-        ),
-        f"KIND: {result.kind}",
-        f"SCORE: {result.score:.4f}",
+class RAGSignature(dspy.Signature):
+    """
+    Answer the question concisely and accurately
+    using only the provided context chunks.
+    """
+    context: Annotated[str, dspy.InputField(
+        desc="Relevant source text chunks from documentation.")]
+    question: Annotated[str, dspy.InputField(
+        desc="The question that needs to be answered.")]
+    answer: Annotated[str, dspy.OutputField(
+        desc="A precise, "
+        "factually accurate answer based strictly on the context.")
     ]
-    if heading:
-        lines.append(f"HEADING: {heading}")
-    if result.symbol:
-        lines.append(f"SYMBOL: {result.symbol}")
-    if calls:
-        lines.append(f"CALLS: {calls}")
-    lines.append("TEXT:")
-    lines.append(_truncate_text(result.text, DEFAULT_MAX_CHUNK_CHARS))
-    return "\n".join(lines)
 
 
-def _source_key(source: dict[str, Any]) -> tuple[str, int, int]:
-    return (
-        str(source.get("file_path", "")),
-        int(source.get("first_character_index", 0)),
-        int(source.get("last_character_index", 0)),
-    )
+def _get_source_text(source: dict[str, Any]) -> str:
+    if "text" in source and source["text"]:
+        return str(source["text"])
 
-
-def _build_corpus_lookup(
-        corpus: list[dict[str, Any]]
-) -> dict[tuple[str, int, int], dict[str, Any]]:
-    return {
-        (
-            str(entry.get("file_path", "")),
-            int(entry.get("first_character_index", 0)),
-            int(entry.get("last_character_index", 0)),
-        ): entry
-        for entry in corpus
-    }
-
-
-def _format_source_block(
-        source: dict[str, Any],
-        entry: dict[str, Any],
-        rank: int,
-) -> str:
-    heading_path = list(entry.get("heading_path") or [])
-    heading = " > ".join(heading_path) if heading_path else ""
-    kind = str(entry.get("kind", "unknown"))
-    lines = [
-        f"[{rank}] FILE: {source.get('file_path', 'unknown')}",
-        (
-            "SPAN: "
-            f"{source.get('first_character_index', 0)}-"
-            f"{source.get('last_character_index', 0)}"
-        ),
-        f"KIND: {kind}",
-    ]
-    if heading:
-        lines.append(f"HEADING: {heading}")
-    symbol = entry.get("symbol")
-    if symbol:
-        lines.append(f"SYMBOL: {symbol}")
-    calls = entry.get("calls") or []
-    if calls:
-        lines.append(f"CALLS: {', '.join(str(call) for call in calls)}")
-    lines.append("TEXT:")
-    lines.append(
-        _truncate_text(str(entry.get("text", "")), DEFAULT_MAX_CHUNK_CHARS)
-    )
-    return "\n".join(lines)
-
-
-def _build_qwen_prompt(
-        question: str,
-        context: str,
-) -> str:
-    return (
-        f"{QWEN_IM_START}system\n"
-        f"{SYSTEM_PROMPT}{QWEN_IM_END}\n"
-        f"{QWEN_IM_START}user\n"
-        f"Question:\n{question}\n\n"
-        f"Retrieved context:\n{context}\n\n"
-        "Answer with only the final answer. /no_think\n"
-        f"{QWEN_IM_END}\n"
-        f"{QWEN_IM_START}assistant\n"
-    )
-
-
-def _call_openai_compatible_completion(
-        *,
-        model: str,
-        prompt: str,
-        base_url: str,
-        max_tokens: int,
-        timeout_seconds: float,
-) -> str:
-    url = f"{base_url.rstrip('/')}/completions"
-    payload = json.dumps({
-        "model": model,
-        "prompt": prompt,
-        "max_tokens": max_tokens,
-        "stop": [QWEN_IM_END],
-        "top_p": 1.0,
-        "stream": False,
-    }).encode("utf-8")
-    request = Request(
-        url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    try:
-        with urlopen(request, timeout=timeout_seconds) as response:
-            raw = response.read().decode("utf-8")
-    except HTTPError as error:
-        body = error.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"vLLM request failed with HTTP {error.code}: {body}"
-        ) from error
-    except URLError as error:
-        raise RuntimeError(
-            f"Could not reach vLLM server at {base_url}: {error.reason}"
-        ) from error
-
-    try:
-        response_payload = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise RuntimeError(
-            f"Invalid JSON returned by vLLM server: {raw[:500]}"
-        ) from error
-
-    choices = response_payload.get("choices")
-    if not isinstance(choices, list) or not choices:
-        raise RuntimeError(
-            f"Missing choices in vLLM response: {response_payload}"
-        )
-
-    choice = choices[0]
-    content = choice.get("text")
-    if not isinstance(content, str):
-        message = choice.get("message", {})
-        content = message.get("content")
-    if not isinstance(content, str):
-        raise RuntimeError(
-            f"Missing completion content in vLLM response: {response_payload}"
-        )
-
-    index = content.find("</think>")
-    if index >= 0:
-        content = content[index + 8:]
-
-    return content.strip()
-
-
-def generate_answer(
-        question: dict[str, Any],
-        results: list[SearchResult],
-        *,
-        config: GenerationConfig,
-) -> GeneratedAnswer:
-    question_id = str(question.get("question_id", ""))
-    question_str = str(question.get("question", ""))
-    selected = _select_context(results, config)
-    context = "\n\n".join(
-        _format_context_block(result, rank)
-        for rank, result in enumerate(selected, start=1)
-    )
-    prompt = _build_qwen_prompt(question_str, context)
-    answer = _call_openai_compatible_completion(
-        model=config.model,
-        prompt=prompt,
-        base_url=config.base_url,
-        max_tokens=config.max_tokens,
-        timeout_seconds=config.timeout_seconds,
-    )
-    return GeneratedAnswer(
-        question_id=question_id,
-        question_str=question_str,
-        answer=answer,
-        retrieved_sources=[
-            result.to_source_dict() for result in results[:config.search_k]
-        ],
-        model=config.model,
-        base_url=config.base_url,
-        max_tokens=config.max_tokens,
-        search_k=config.search_k,
-        top_context_chunks=config.top_context_chunks,
-    )
-
-
-def generate_answer_from_sources(
-        question_id: str,
-        question_str: str,
-        retrieved_sources: list[dict[str, Any]],
-        *,
-        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
-        config: GenerationConfig,
-) -> GeneratedAnswer:
-    selected_sources = retrieved_sources[:config.top_context_chunks]
-    blocks: list[str] = []
-    for rank, source in enumerate(selected_sources, start=1):
-        entry = corpus_lookup.get(_source_key(source))
-        if entry is None:
-            continue
-        blocks.append(_format_source_block(source, entry, rank))
-
-    prompt = _build_qwen_prompt(question_str, "\n\n".join(blocks))
-    answer = _call_openai_compatible_completion(
-        model=config.model,
-        prompt=prompt,
-        base_url=config.base_url,
-        max_tokens=config.max_tokens,
-        timeout_seconds=config.timeout_seconds,
-    )
-    return GeneratedAnswer(
-        question_id=question_id,
-        question_str=question_str,
-        answer=answer,
-        retrieved_sources=list(retrieved_sources[:config.search_k]),
-        model=config.model,
-        base_url=config.base_url,
-        max_tokens=config.max_tokens,
-        search_k=config.search_k,
-        top_context_chunks=config.top_context_chunks,
-    )
+    file_path = Path(source.get("file_path", ""))
+    if file_path.exists():
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            start = int(source.get("first_character_index", 0))
+            end = int(source.get("last_character_index", len(content)))
+            # Indices are inclusive based on the pipeline's IoU calculations
+            return content[start:end + 1]
+        except Exception:
+            return ""
+    return ""
 
 
 def answer_question(
-        question: str,
-        *,
-        model: str = DEFAULT_MODEL,
-        base_url: str = DEFAULT_BASE_URL,
-        search_k: int = DEFAULT_SEARCH_K,
-        top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        retriever: Any | None = None,
-        corpus: list[dict[str, Any]] | None = None,
+    question: str,
+    corpus: Sequence[dict[str, Any]],
+    *,
+    model: str = DEFAULT_MODEL,
+    base_url: str = DEFAULT_BASE_URL,
+    search_k: int = DEFAULT_SEARCH_K,
+    top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    retriever: Any = None,
 ) -> GeneratedAnswer:
-    if retriever is None or corpus is None:
-        retriever, corpus = load_or_build_index()
+    results = search(question, retriever, corpus, k=search_k)
 
-    config = GenerationConfig(
+    context_pieces = [res.text for res in results[:top_context_chunks]]
+    context_str = "\n---\n".join(context_pieces)
+
+    lm = dspy.LM(
+        f"openai/{model}",
+        api_base=base_url,
+        api_key="none",
+        max_tokens=max_tokens,
+        timeout=timeout_seconds,
+    )
+
+    with dspy.context(lm=lm):
+        predictor = dspy.ChainOfThought(RAGSignature)
+        prediction = predictor(context=context_str, question=question)
+
+    retrieved_sources = [res.to_source_dict() for res in results]
+    return GeneratedAnswer(
+        question_id="single_query",
+        question_str=question,
+        answer=prediction.answer,
+        retrieved_sources=retrieved_sources,
         model=model,
         base_url=base_url,
         max_tokens=max_tokens,
         search_k=search_k,
         top_context_chunks=top_context_chunks,
-        timeout_seconds=timeout_seconds,
     )
-    results = search(question, retriever, corpus, k=config.search_k)
-    generated = generate_answer(
-        {"question_id": "0", "question": question},
-        results,
-        config=config,
-    )
-    return generated
-
-
-def _load_search_results(
-        student_search_results_path: str | Path) -> dict[str, Any]:
-    path = Path(student_search_results_path)
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError as e:
-        raise RuntimeError(
-            f"Could not read search results file '{path}': {e}"
-        ) from e
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(
-            f"Search results file '{path}' contains invalid JSON: {e}"
-        ) from e
-    search_results = payload.get("search_results", [])
-    if not isinstance(search_results, list):
-        raise ValueError(
-            "Invalid student results format: search_results must be a list"
-        )
-    return cast(dict[str, Any], payload)
-
-
-def _load_existing_answers(
-        output_path: Path) -> dict[str, dict[str, Any]]:
-    if not output_path.exists():
-        return {}
-
-    try:
-        payload = json.loads(output_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
-        print(
-            f"\033[93mWarning\033[0m: checkpoint file '{output_path}' is "
-            f"unreadable ({e}), starting from scratch."
-        )
-        return {}
-    answers = payload.get("search_results", [])
-    if not isinstance(answers, list):
-        return {}
-
-    existing: dict[str, dict[str, Any]] = {}
-    for item in answers:
-        if not isinstance(item, dict):
-            continue
-        question_id = str(item.get("question_id", ""))
-        if question_id:
-            existing[question_id] = item
-    return existing
-
-
-def _answer_student_item(
-        item: dict[str, Any],
-        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
-        config: GenerationConfig,
-) -> dict[str, Any]:
-    question_id = str(item.get("question_id", ""))
-    question_str = str(item.get("question_str", item.get("question", "")))
-    retrieved_sources = list(item.get("retrieved_sources") or [])
-    generated = generate_answer_from_sources(
-        question_id,
-        question_str,
-        retrieved_sources,
-        corpus_lookup=corpus_lookup,
-        config=config,
-    )
-    return {
-        "question_id": generated.question_id,
-        "question_str": generated.question_str,
-        "retrieved_sources": generated.retrieved_sources,
-        "answer": generated.answer,
-    }
-
-
-def _answer_student_items_with_resume(
-        items: list[dict[str, Any]],
-        corpus_lookup: dict[tuple[str, int, int], dict[str, Any]],
-        config: GenerationConfig,
-        *,
-        existing_answers: dict[str, dict[str, Any]],
-        concurrency: int,
-        checkpoint_interval: int,
-        output_path: Path | None,
-        base_payload: dict[str, Any],
-) -> list[dict[str, Any]]:
-    answers: list[dict[str, Any] | None] = [None] * len(items)
-    completed = 0
-
-    for index, item in enumerate(items):
-        question_id = str(item.get("question_id", ""))
-        if question_id and question_id in existing_answers:
-            answers[index] = existing_answers[question_id]
-
-    pending_indexes = [
-        index for index, item in enumerate(items)
-        if answers[index] is None
-    ]
-
-    if not pending_indexes:
-        return [answer for answer in answers if answer is not None]
-
-    if concurrency <= 1:
-        for index in tqdm(pending_indexes, desc="Generating answers"):
-            answers[index] = _answer_student_item(
-                items[index],
-                corpus_lookup,
-                config,
-            )
-            completed += 1
-            if (
-                output_path is not None
-                and completed % checkpoint_interval == 0
-            ):
-                save_answers(
-                    {
-                        **base_payload,
-                        "search_results": [
-                            answer for answer in answers if answer is not None
-                        ],
-                    },
-                    output_path,
-                )
-    else:
-        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as executor:
-            future_to_index = {
-                executor.submit(
-                    _answer_student_item,
-                    items[index],
-                    corpus_lookup,
-                    config,
-                ): index
-                for index in pending_indexes
-            }
-            for future in tqdm(
-                    as_completed(future_to_index),
-                    total=len(future_to_index),
-                    desc="Generating answers"):
-                index = future_to_index[future]
-                try:
-                    answers[index] = future.result()
-                except Exception as e:
-                    question_id = str(items[index].get("question_id", index))
-                    print(
-                        f"\033[93mWarning\033[0m: failed to answer question "
-                        f"{question_id}: {e}"
-                    )
-                    answers[index] = {
-                        "question_id": question_id,
-                        "question_str": str(
-                            items[index].get("question_str", "")),
-                        "retrieved_sources": list(
-                            items[index].get("retrieved_sources") or []),
-                        "answer": f"[generation error: {e}]",
-                    }
-                completed += 1
-                if (
-                    output_path is not None
-                    and completed % checkpoint_interval == 0
-                ):
-                    save_answers(
-                        {
-                            **base_payload,
-                            "search_results": [
-                                answer
-                                for answer in answers
-                                if answer is not None
-                            ],
-                        },
-                        output_path,
-                    )
-
-    if output_path is not None:
-        save_answers(
-            {
-                **base_payload,
-                "search_results": [
-                    answer for answer in answers if answer is not None
-                ],
-            },
-            output_path,
-        )
-
-    return [answer for answer in answers if answer is not None]
-
-
-def save_answers(
-        payload: dict[str, Any], output_path: str | Path) -> Path:
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-    return path
 
 
 def answer_dataset_to_file(
-        student_search_results_path: str | Path,
-        *,
-        output_dir: str | Path = DEFAULT_OUTPUT_DIR,
-        model: str = DEFAULT_MODEL,
-        base_url: str = DEFAULT_BASE_URL,
-        top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        concurrency: int = DEFAULT_CONCURRENCY,
-        checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
-        corpus: list[dict[str, Any]] | None = None,
+    student_search_results_path: str | Path,
+    *,
+    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+    model: str = DEFAULT_MODEL,
+    base_url: str = DEFAULT_BASE_URL,
+    top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    concurrency: int = DEFAULT_CONCURRENCY,
+    checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
 ) -> Path:
-    output_path = Path(output_dir) / Path(student_search_results_path).name
+    """
+    Processes an entire search result dataset concurrently,
+    running generation and tracking progress via checkpoints.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / Path(student_search_results_path).name
 
-    payload = _load_search_results(student_search_results_path)
-    search_results = list(payload.get("search_results", []))
-    if corpus is None:
+    with open(student_search_results_path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    search_results = payload.get("search_results", [])
+    search_k = payload.get("k", DEFAULT_SEARCH_K)
+
+    # Checkpoint recovery: check if partial execution file exists
+    answers = []
+    if output_path.exists():
         try:
-            corpus = load_chunks()
-        except FileNotFoundError:
-            _, corpus = load_or_build_index()
+            with open(output_path, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+                answers = existing_data.get("answers", [])
+        except Exception:
+            answers = []
 
-    corpus_lookup = _build_corpus_lookup(corpus)
-    output_path_obj = Path(output_path) if output_path is not None else None
-    existing_answers = (
-        _load_existing_answers(output_path_obj)
-        if output_path_obj is not None
-        else {}
-    )
+    completed_ids = {str(ans["question_id"]) for ans in answers}
+    remaining_items = [
+        item for item in search_results
+        if str(item.get("question_id")) not in completed_ids
+    ]
 
-    config = GenerationConfig(
-        model=model,
-        base_url=base_url,
-        max_tokens=max_tokens,
-        top_context_chunks=top_context_chunks,
-        timeout_seconds=timeout_seconds,
-    )
+    def _worker(item: dict[str, Any]) -> dict[str, Any]:
+        # Localize LM configuration to thread scope
+        lm = dspy.LM(
+            f"openai/{model}",
+            api_base=base_url,
+            api_key="none",
+            max_tokens=max_tokens,
+            timeout=timeout_seconds,
+        )
 
-    _answer_student_items_with_resume(
-        search_results,
-        corpus_lookup,
-        config,
-        existing_answers=existing_answers,
-        concurrency=concurrency,
-        checkpoint_interval=max(1, checkpoint_interval),
-        output_path=output_path_obj,
-        base_payload=payload,
-    )
+        question_str = item.get("question_str", "")
+        question_id = item.get("question_id", "")
+        retrieved_sources = item.get("retrieved_sources", [])
+
+        # Re-assemble text context for top chunks
+        context_pieces = []
+        for src in retrieved_sources[:top_context_chunks]:
+            txt = _get_source_text(src)
+            if txt:
+                context_pieces.append(txt)
+        context_str = "\n---\n".join(context_pieces)
+
+        with dspy.context(lm=lm):
+            predictor = dspy.ChainOfThought(RAGSignature)
+            try:
+                prediction = predictor(
+                    context=context_str, question=question_str)
+                answer_text = prediction.answer
+            except Exception as e:
+                answer_text = f"Error generating answer: {str(e)}"
+
+        gen_answer = GeneratedAnswer(
+            question_id=str(question_id),
+            question_str=question_str,
+            answer=answer_text,
+            retrieved_sources=retrieved_sources,
+            model=model,
+            base_url=base_url,
+            max_tokens=max_tokens,
+            search_k=search_k,
+            top_context_chunks=top_context_chunks,
+        )
+        return gen_answer.to_dict()
+
+    if remaining_items:
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            results_generator = executor.map(_worker, remaining_items)
+
+            for idx, ans_dict in enumerate(
+                tqdm(
+                    results_generator,
+                    total=len(remaining_items),
+                    desc="Generating answers")
+            ):
+                answers.append(ans_dict)
+                if (idx + 1) % checkpoint_interval == 0:
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        json.dump(
+                            {"answers": answers},
+                            f,
+                            indent=2,
+                            ensure_ascii=False
+                        )
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump({"answers": answers}, f, indent=2, ensure_ascii=False)
 
     return output_path

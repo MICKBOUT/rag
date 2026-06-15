@@ -5,6 +5,7 @@ from typing import Any
 import fire
 from pydantic import ValidationError
 
+from litellm.exceptions import InternalServerError
 from generation import answer_dataset_to_file, answer_question, DEFAULT_MODEL
 from indexing import build_and_save_index, load_or_build_index
 from pipeline import evaluate_search_results, search_dataset_to_file
@@ -29,7 +30,6 @@ class RAGCLI:
             index_path: str = "data/processed/bm25_index",
             max_chunk_size: int = 2000,
     ) -> dict[str, Any]:
-        # Validate using Pydantic
         args = IndexParams(
             folder_path=folder_path,
             index_path=index_path,
@@ -63,7 +63,6 @@ class RAGCLI:
             index_path: str = "data/processed/bm25_index",
             max_chunk_size: int = 2000,
     ) -> dict[str, Any]:
-        # Validate using Pydantic
         args = SearchParams(
             query=query,
             k=k,
@@ -93,7 +92,6 @@ class RAGCLI:
             index_path: str = "data/processed/bm25_index",
             max_chunk_size: int = 2000,
     ) -> str:
-        # Validate using Pydantic
         args = SearchDatasetParams(
             dataset_path=dataset_path,
             k=k,
@@ -131,7 +129,6 @@ class RAGCLI:
             index_path: str = "data/processed/bm25_index",
             max_chunk_size: int = 2000,
     ) -> dict[str, Any]:
-        # Validate using Pydantic
         args = AnswerParams(
             question=question,
             k=k,
@@ -152,6 +149,7 @@ class RAGCLI:
         )
         generated = answer_question(
             args.question,
+            corpus,
             model=args.model,
             base_url=args.base_url,
             search_k=args.k,
@@ -159,7 +157,6 @@ class RAGCLI:
             max_tokens=args.max_tokens,
             timeout_seconds=args.timeout_seconds,
             retriever=retriever,
-            corpus=corpus,
         )
         return generated.to_dict()
 
@@ -175,7 +172,6 @@ class RAGCLI:
             checkpoint_interval: int = 1,
             save_directory: str = "data/output/search_results_and_answer",
     ) -> str:
-        # Validate using Pydantic
         args = AnswerDatasetParams(
             student_search_results_path=student_search_results_path,
             model=model,
@@ -208,7 +204,6 @@ class RAGCLI:
             minimal_iou_threshold: float = 0.05,
             threshold: float | None = None,
     ) -> dict[str, Any]:
-        # Validate using Pydantic
         args = EvaluateParams(
             student_results_path=student_results_path,
             dataset_path=dataset_path,
@@ -247,7 +242,6 @@ class RAGCLI:
         )
 
     def datasets(self, root: str = "data/datasets") -> dict[str, Any]:
-        # Validate using Pydantic
         args = DatasetsParams(root=root)
         root_path = Path(args.root)
         return {
@@ -280,6 +274,10 @@ def main() -> None:
         print(f"{error_str} Invalid argument combinations.\nDetail: {e}")
     except FileNotFoundError as e:
         print(f"{error_str} File needed to run the program ->", e)
+    except InternalServerError:
+        print(f"{error_str} Please make sure your local vLLM/inference "
+              "server is active and listening on the configured port "
+              "(default: http://localhost:8000/v1).")
 
 
 if __name__ == "__main__":

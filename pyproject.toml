@@ -15,6 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "bm25s>=0.3.9",
+    "dspy>=3.2.1",
     "fire>=0.7.1",
     "flake8>=7.3.0",
     "mypy>=2.1.0",
@@ -53,20 +54,9 @@ py-modules = [
 [tool.mypy]
 mypy_path = "src"
 files = ["src"]
+ignore_missing_imports = true
+disable_error_code = ["misc"]
 
-[[tool.mypy.overrides]]
-module = [
-    "ast_cleaninig",
-    "cli",
-    "generation",
-    "indexing",
-    "models",
-    "pipeline",
-    "retrieval",
-    "student",
-    "validation",
-]
-disable_error_code = ["import-untyped"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
