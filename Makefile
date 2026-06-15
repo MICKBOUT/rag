@@ -1,6 +1,6 @@
 VENV		= .venv
 SRC_DIR		= src
-MAIN		= $(SRC_DIR)/main.py
+MAIN		= $(SRC_DIR)/student.py
 PRIVACY=public
 
 install:
@@ -23,11 +23,11 @@ evaluate_code_results:
 
 recall_code:
 	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_code_$(PRIVACY).json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	uv run python3 -m student evaluate data/output/search_results/dataset_code_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_code_$(PRIVACY).json --threshold 0.5
+	uv run python -m student evaluate data/output/search_results/dataset_code_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_code_$(PRIVACY).json --threshold 0.5
 
 recall_docs:
 	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_docs_$(PRIVACY).json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	uv run python3 -m student evaluate data/output/search_results/dataset_docs_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json --threshold 0.8
+	uv run python -m student evaluate data/output/search_results/dataset_docs_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json --threshold 0.8
 
 answer_the_dataset:
 	uv run python -m student search_dataset data/datasets/public/UnansweredQuestions/dataset_code_public.json \

@@ -43,10 +43,11 @@ py-modules = [
     "cli",
     "generation",
     "indexing",
-    "main",
     "models",
     "pipeline",
     "retrieval",
+    "student",
+    "validation",
 ]
 
 [tool.mypy]
@@ -54,7 +55,17 @@ mypy_path = "src"
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["bm25s_test", "cli", "indexing", "main", "retrieval"]
+module = [
+    "ast_cleaninig",
+    "cli",
+    "generation",
+    "indexing",
+    "models",
+    "pipeline",
+    "retrieval",
+    "student",
+    "validation",
+]
 disable_error_code = ["import-untyped"]
 
 [tool.uv]
