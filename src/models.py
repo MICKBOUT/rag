@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from config import Config
+
 
 @dataclass(slots=True)
 class SearchResult:
@@ -68,7 +70,7 @@ class GeneratedAnswer:
     base_url: str = ""
     max_tokens: int = 0
     search_k: int = 0
-    top_context_chunks: int = 0
+    top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS
 
     def to_dict(self) -> dict[str, Any]:
         return {

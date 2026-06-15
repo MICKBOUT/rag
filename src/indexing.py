@@ -40,18 +40,14 @@ def _limit_entry_text(
     text = _entry_text(entry)
     span_length = _source_span_length(entry)
 
-    # If both the text and the source span fit within the limit, keep as-is.
     if len(text) <= max_chunk_size and span_length <= max_chunk_size:
         return entry
 
     limited_entry = dict(entry)
 
-    # Truncate BM25 text if it exceeds the limit.
     if len(text) > max_chunk_size:
         limited_entry["text"] = text[:max_chunk_size].rstrip()
 
-    # Only clip the span when the *source span* itself exceeds the limit
-    # (not when it is the prefix that pushed len(text) over the threshold).
     if span_length > max_chunk_size:
         first = int(entry.get("first_character_index", 0))
         limited_entry["last_character_index"] = first + max_chunk_size

@@ -12,7 +12,6 @@ from pipeline import evaluate_search_results, search_dataset_to_file
 from retrieval import search
 from config import Config
 
-# Import the validation models from your validation module
 from validation import (
     IndexParams,
     SearchParams,
@@ -123,7 +122,7 @@ class RAGCLI:
             k: int = Config.DEFAULT_SEARCH_K,
             model: str = Config.DEFAULT_MODEL,
             base_url: str = Config.DEFAULT_BASE_URL,
-            top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+            top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
             max_tokens: int = Config.DEFAULT_MAX_TOKENS,
             timeout_seconds: float = Config.TIMEOUT_SECONDS_SINGLE_QUESTION,
             folder_path: str = Config.RAW_ROOT,
@@ -166,7 +165,7 @@ class RAGCLI:
             student_search_results_path: str,
             model: str = Config.DEFAULT_MODEL,
             base_url: str = Config.DEFAULT_BASE_URL,
-            top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+            top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
             max_tokens: int = Config.DEFAULT_MAX_TOKENS,
             timeout_seconds: float = Config.TIMEOUT_SECONDS_MULTIPLE_QUESTION,
             concurrency: int = 1,

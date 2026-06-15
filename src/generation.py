@@ -37,7 +37,6 @@ def _get_source_text(source: dict[str, Any]) -> str:
             content = file_path.read_text(encoding="utf-8")
             start = int(source.get("first_character_index", 0))
             end = int(source.get("last_character_index", len(content)))
-            # Indices are inclusive based on the pipeline's IoU calculations
             return content[start:end + 1]
         except Exception:
             return ""
@@ -51,7 +50,7 @@ def answer_question(
     model: str = Config.DEFAULT_MODEL,
     base_url: str = Config.DEFAULT_BASE_URL,
     search_k: int = Config.DEFAULT_SEARCH_K,
-    top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+    top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
     max_tokens: int = Config.DEFAULT_MAX_TOKENS,
     timeout_seconds: float = Config.DEFAULT_TIMEOUT_SECONDS,
     retriever: Any = None,
@@ -59,6 +58,10 @@ def answer_question(
     results = search(question, retriever, corpus, k=search_k)
 
     context_pieces = [res.text for res in results[:top_context_chunks]]
+
+    while context_pieces and sum(len(p) for p in context_pieces) > 7000:
+        context_pieces.pop()
+
     context_str = "\n---\n".join(context_pieces)
 
     lm = dspy.LM(
@@ -93,7 +96,7 @@ def answer_dataset_to_file(
     output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR,
     model: str = Config.DEFAULT_MODEL,
     base_url: str = Config.DEFAULT_BASE_URL,
-    top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+    top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
     max_tokens: int = Config.DEFAULT_MAX_TOKENS,
     timeout_seconds: float = Config.DEFAULT_TIMEOUT_SECONDS,
     concurrency: int = Config.DEFAULT_CONCURRENCY,
@@ -113,7 +116,6 @@ def answer_dataset_to_file(
     search_results = payload.get("search_results", [])
     search_k = payload.get("k", Config.DEFAULT_SEARCH_K)
 
-    # Checkpoint recovery: check if partial execution file exists
     answers = []
     if output_path.exists():
         try:
@@ -129,36 +131,48 @@ def answer_dataset_to_file(
         if str(item.get("question_id")) not in completed_ids
     ]
 
-    def _worker(item: dict[str, Any]) -> dict[str, Any]:
-        # Localize LM configuration to thread scope
-        lm = dspy.LM(
-            f"openai/{model}",
-            api_base=base_url,
-            api_key="none",
-            max_tokens=max_tokens,
-            timeout=timeout_seconds,
-        )
+    shared_lm = dspy.LM(
+        f"openai/{model}",
+        api_base=base_url,
+        api_key="none",
+        max_tokens=max_tokens,
+        timeout=timeout_seconds,
+    )
 
+    def _worker(item: dict[str, Any]) -> dict[str, Any]:
         question_str = item.get("question_str", "")
         question_id = item.get("question_id", "")
         retrieved_sources = item.get("retrieved_sources", [])
 
-        # Re-assemble text context for top chunks
         context_pieces = []
         for src in retrieved_sources[:top_context_chunks]:
             txt = _get_source_text(src)
             if txt:
                 context_pieces.append(txt)
-        context_str = "\n---\n".join(context_pieces)
 
-        with dspy.context(lm=lm):
+        current_pieces = list(context_pieces)
+        while current_pieces and sum(len(p) for p in current_pieces) > 7000:
+            current_pieces.pop()
+
+        context_str = "\n---\n".join(current_pieces)
+
+        with dspy.context(lm=shared_lm):
             predictor = dspy.ChainOfThought(RAGSignature)
             try:
                 prediction = predictor(
                     context=context_str, question=question_str)
                 answer_text = prediction.answer
             except Exception as e:
-                answer_text = f"Error generating answer: {str(e)}"
+                if "context window" in str(e).lower() and current_pieces:
+                    try:
+                        current_pieces.pop()
+                        context_str = "\n---\n".join(current_pieces)
+                        prediction = predictor(context=context_str, question=question_str)
+                        answer_text = prediction.answer
+                    except Exception as retry_e:
+                        answer_text = f"Error generating answer: {str(retry_e)}"
+                else:
+                    answer_text = f"Error generating answer: {str(e)}"
 
         gen_answer = GeneratedAnswer(
             question_id=str(question_id),

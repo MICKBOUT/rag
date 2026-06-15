@@ -12,7 +12,6 @@ from pydantic import (
 from config import Config
 
 
-# Shared fields
 _K_FIELD = Field(
     default=10,
     ge=1,
@@ -32,7 +31,7 @@ _MAX_TOKENS_FIELD = Field(
     description="Maximum tokens to generate",
 )
 _TOP_CONTEXT_CHUNKS_FIELD = Field(
-    default=3,
+    default=Config.DEFAULT_TOP_CONTEXT_CHUNKS,
     ge=1,
     le=50,
     description="Number of context chunks",
@@ -45,7 +44,6 @@ _TIMEOUT_FIELD = Field(
 )
 
 
-# Base model
 class StrictBaseModel(BaseModel):
     model_config = ConfigDict(
         strict=True,
@@ -53,7 +51,6 @@ class StrictBaseModel(BaseModel):
     )
 
 
-# Reusable validators
 def validate_existing_directory(path_str: str) -> str:
     path = Path(path_str)
 
@@ -78,7 +75,6 @@ def validate_existing_file(path_str: str) -> str:
     return path_str
 
 
-# Index
 class IndexParams(StrictBaseModel):
     folder_path: str = "data/raw/vllm-0.10.1"
     index_path: str = "data/processed/bm25_index"
@@ -90,7 +86,6 @@ class IndexParams(StrictBaseModel):
         return validate_existing_directory(value)
 
 
-# Search
 class SearchParams(StrictBaseModel):
     query: str
     k: int = _K_FIELD
@@ -111,7 +106,6 @@ class SearchParams(StrictBaseModel):
         return validate_existing_directory(value)
 
 
-# Search Dataset
 class SearchDatasetParams(StrictBaseModel):
     dataset_path: str
     k: int = _K_FIELD
@@ -131,13 +125,12 @@ class SearchDatasetParams(StrictBaseModel):
         return validate_existing_directory(value)
 
 
-# Answer
 class AnswerParams(StrictBaseModel):
     question: str
     k: int = _K_FIELD
     model: str = "Qwen/Qwen3-0.6B"
     base_url: str = "http://localhost:8000/v1"
-    top_context_chunks: int = _TOP_CONTEXT_CHUNKS_FIELD
+    top_context_chunks: int | None = _TOP_CONTEXT_CHUNKS_FIELD
     max_tokens: int = _MAX_TOKENS_FIELD
     timeout_seconds: float = _TIMEOUT_FIELD
     folder_path: str = "data/raw/vllm-0.10.1"
@@ -179,7 +172,10 @@ class AnswerParams(StrictBaseModel):
 
     @model_validator(mode="after")
     def top_chunks_must_be_le_k(self) -> AnswerParams:
-        if self.top_context_chunks > self.k:
+        if (
+            self.top_context_chunks is not None and
+            self.top_context_chunks > self.k
+        ):
             raise ValueError(
                 f"top_context_chunks ({self.top_context_chunks}) "
                 f"must be <= k ({self.k})"
@@ -187,12 +183,11 @@ class AnswerParams(StrictBaseModel):
         return self
 
 
-# Answer Dataset
 class AnswerDatasetParams(StrictBaseModel):
     student_search_results_path: str
     model: str = "Qwen/Qwen3-0.6B"
     base_url: str = "http://localhost:8000/v1"
-    top_context_chunks: int = _TOP_CONTEXT_CHUNKS_FIELD
+    top_context_chunks: int | None = _TOP_CONTEXT_CHUNKS_FIELD
     max_tokens: int = _MAX_TOKENS_FIELD
     timeout_seconds: float = Field(
         default=600.0,
@@ -239,7 +234,6 @@ class AnswerDatasetParams(StrictBaseModel):
         return value.rstrip("/")
 
 
-# Evaluate
 class EvaluateParams(StrictBaseModel):
     student_results_path: str
     dataset_path: str
