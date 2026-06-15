@@ -4,12 +4,13 @@ from typing import Any
 
 import fire
 from pydantic import ValidationError
-
 from litellm.exceptions import InternalServerError
-from generation import answer_dataset_to_file, answer_question, DEFAULT_MODEL
+
+from generation import answer_dataset_to_file, answer_question
 from indexing import build_and_save_index, load_or_build_index
 from pipeline import evaluate_search_results, search_dataset_to_file
 from retrieval import search
+from config import Config
 
 # Import the validation models from your validation module
 from validation import (
@@ -120,7 +121,7 @@ class RAGCLI:
             self,
             question: str,
             k: int = 10,
-            model: str = DEFAULT_MODEL,
+            model: str = Config.DEFAULT_MODEL,
             base_url: str = "http://localhost:8000/v1",
             top_context_chunks: int = 3,
             max_tokens: int = 256,
@@ -163,7 +164,7 @@ class RAGCLI:
     def answer_dataset(
             self,
             student_search_results_path: str,
-            model: str = DEFAULT_MODEL,
+            model: str = Config.DEFAULT_MODEL,
             base_url: str = "http://localhost:8000/v1",
             top_context_chunks: int = 3,
             max_tokens: int = 256,
@@ -234,8 +235,8 @@ class RAGCLI:
     def show_config(self) -> str:
         return json.dumps(
             {
-                "default_model": DEFAULT_MODEL,
-                "default_base_url": "http://localhost:8000/v1",
+                "default_model": Config.DEFAULT_MODEL,
+                "default_base_url": Config.DEFAULT_BASE_URL,
                 "index_path": "data/processed/bm25_index",
             },
             indent=2,

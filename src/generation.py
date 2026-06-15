@@ -9,18 +9,7 @@ from tqdm import tqdm
 
 from models import GeneratedAnswer
 from retrieval import search
-
-DEFAULT_BASE_URL = "http://localhost:8000/v1"
-DEFAULT_OUTPUT_DIR = Path("data/output/search_results_and_answer")
-DEFAULT_MAX_TOKENS = 256
-DEFAULT_SEARCH_K = 10
-DEFAULT_TOP_CONTEXT_CHUNKS = 3
-DEFAULT_TIMEOUT_SECONDS = 60.0
-DEFAULT_CONCURRENCY = 8
-DEFAULT_CHECKPOINT_INTERVAL = 1
-DEFAULT_MODEL = "Qwen/Qwen3-0.6B"
-
-DEFAULT_MAX_CHUNK_CHARS = 2_000
+from config import Config
 
 
 class RAGSignature(dspy.Signature):
@@ -59,12 +48,12 @@ def answer_question(
     question: str,
     corpus: Sequence[dict[str, Any]],
     *,
-    model: str = DEFAULT_MODEL,
-    base_url: str = DEFAULT_BASE_URL,
-    search_k: int = DEFAULT_SEARCH_K,
-    top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    model: str = Config.DEFAULT_MODEL,
+    base_url: str = Config.DEFAULT_BASE_URL,
+    search_k: int = Config.DEFAULT_SEARCH_K,
+    top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+    max_tokens: int = Config.DEFAULT_MAX_TOKENS,
+    timeout_seconds: float = Config.DEFAULT_TIMEOUT_SECONDS,
     retriever: Any = None,
 ) -> GeneratedAnswer:
     results = search(question, retriever, corpus, k=search_k)
@@ -101,14 +90,14 @@ def answer_question(
 def answer_dataset_to_file(
     student_search_results_path: str | Path,
     *,
-    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
-    model: str = DEFAULT_MODEL,
-    base_url: str = DEFAULT_BASE_URL,
-    top_context_chunks: int = DEFAULT_TOP_CONTEXT_CHUNKS,
-    max_tokens: int = DEFAULT_MAX_TOKENS,
-    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-    concurrency: int = DEFAULT_CONCURRENCY,
-    checkpoint_interval: int = DEFAULT_CHECKPOINT_INTERVAL,
+    output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR,
+    model: str = Config.DEFAULT_MODEL,
+    base_url: str = Config.DEFAULT_BASE_URL,
+    top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+    max_tokens: int = Config.DEFAULT_MAX_TOKENS,
+    timeout_seconds: float = Config.DEFAULT_TIMEOUT_SECONDS,
+    concurrency: int = Config.DEFAULT_CONCURRENCY,
+    checkpoint_interval: int = Config.DEFAULT_CHECKPOINT_INTERVAL,
 ) -> Path:
     """
     Processes an entire search result dataset concurrently,
@@ -122,7 +111,7 @@ def answer_dataset_to_file(
         payload = json.load(f)
 
     search_results = payload.get("search_results", [])
-    search_k = payload.get("k", DEFAULT_SEARCH_K)
+    search_k = payload.get("k", Config.DEFAULT_SEARCH_K)
 
     # Checkpoint recovery: check if partial execution file exists
     answers = []
@@ -158,6 +147,7 @@ def answer_dataset_to_file(
         context_pieces = []
         for src in retrieved_sources[:top_context_chunks]:
             txt = _get_source_text(src)
+            print(txt)
             if txt:
                 context_pieces.append(txt)
         context_str = "\n---\n".join(context_pieces)

@@ -5,13 +5,7 @@ from typing import Any, cast
 import bm25s
 
 from ast_cleaninig import get_ready_to_index_data
-
-
-INDEX_PATH = "data/processed/bm25_index"
-CHUNKS_PATH = "data/processed/chunks/chunks.jsonl"
-RAW_ROOT = "data/raw/vllm-0.10.1"
-DEFAULT_MAX_CHUNK_SIZE = 2000
-REPO_ROOT = Path(__file__).resolve().parents[1]
+from config import Config
 
 
 def _metadata_path(index_path: str) -> Path:
@@ -22,7 +16,7 @@ def _resolve_repo_path(path: str | Path) -> Path:
     candidate = Path(path)
     if candidate.is_absolute():
         return candidate
-    return (REPO_ROOT / candidate).resolve()
+    return (Config.REPO_ROOT / candidate).resolve()
 
 
 def _entry_text(entry: dict[str, Any]) -> str:
@@ -78,7 +72,7 @@ def _write_index_metadata(
 
 
 def _write_chunks(corpus: list[dict[str, Any]]) -> None:
-    path = _resolve_repo_path(CHUNKS_PATH)
+    path = _resolve_repo_path(Config.CHUNKS_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for entry in corpus:
@@ -88,7 +82,7 @@ def _write_chunks(corpus: list[dict[str, Any]]) -> None:
 
 
 def load_chunks(
-        chunks_path: str = CHUNKS_PATH) -> list[dict[str, Any]]:
+        chunks_path: str = Config.CHUNKS_PATH) -> list[dict[str, Any]]:
     path = _resolve_repo_path(chunks_path)
     if not path.exists():
         raise FileNotFoundError(
@@ -120,9 +114,9 @@ def _corpus_has_absolute_paths(corpus: list[dict[str, Any]]) -> bool:
 
 
 def build_and_save_index(
-        folder_path: str = RAW_ROOT,
-        index_path: str = INDEX_PATH,
-        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+        folder_path: str = Config.RAW_ROOT,
+        index_path: str = Config.INDEX_PATH,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
     resolved_index_path = _resolve_repo_path(index_path)
     corpus = [
@@ -153,8 +147,8 @@ def build_and_save_index(
 
 
 def load_index(
-        index_path: str = INDEX_PATH,
-        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+        index_path: str = Config.INDEX_PATH,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
     resolved_index_path = _resolve_repo_path(index_path)
     retriever = bm25s.BM25.load(str(resolved_index_path), load_corpus=True)
@@ -177,9 +171,9 @@ def load_index(
 
 
 def load_or_build_index(
-        folder_path: str = RAW_ROOT,
-        index_path: str = INDEX_PATH,
-        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+        folder_path: str = Config.RAW_ROOT,
+        index_path: str = Config.INDEX_PATH,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
     try:
         return load_index(index_path, max_chunk_size=max_chunk_size)

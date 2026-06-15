@@ -158,6 +158,7 @@ That is the order that best matches the grading pipeline.
 
 
 aditional options: (bonus)
+
 part on stop word ('a', 'the') stopwords="en"
 top_context_chunks to give the model only the top k chunks retrieved from the index, to avoid overwhelming the model with too much context.
 using vllm

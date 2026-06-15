@@ -8,10 +8,7 @@ from tqdm import tqdm
 from indexing import load_or_build_index
 from models import SearchResult
 from retrieval import search
-
-
-DEFAULT_OUTPUT_DIR = Path("data/output/search_results")
-MIN_IOU_THRESHOLD = 0.05
+from config import Config
 
 
 @dataclass(slots=True)
@@ -108,7 +105,7 @@ def search_dataset_to_file(
         dataset_path: str | Path,
         *,
         k: int = 10,
-        output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+        output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER,
         retriever: Any | None = None,
         corpus: list[dict[str, Any]] | None = None,
         max_chunk_size: int = 2000) -> Path:
@@ -168,7 +165,7 @@ def evaluate_search_results(
         student_results_path: str | Path,
         dataset_path: str | Path,
         *,
-        minimal_iou_threshold: float = MIN_IOU_THRESHOLD,
+        minimal_iou_threshold: float = Config.MIN_IOU_THRESHOLD,
         threshold: float | None = None) -> EvaluationSummary:
     student_payload = json.loads(
         Path(student_results_path).read_text(encoding="utf-8"))
