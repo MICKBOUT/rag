@@ -27,9 +27,9 @@ from validation import (
 class RAGCLI:
     def index(
             self,
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
+            folder_path: str = Config.RAW_ROOT,
+            index_path: str = Config.INDEX_PATH,
+            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
         args = IndexParams(
             folder_path=folder_path,
@@ -50,19 +50,19 @@ class RAGCLI:
 
     def build_index(
             self,
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
+            folder_path: str = Config.INDEX_PATH,
+            index_path: str = Config.INDEX_PATH,
+            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
         return self.index(folder_path, index_path, max_chunk_size)
 
     def search(
             self,
             query: str,
-            k: int = 10,
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
+            k: int = Config.DEFAULT_SEARCH_K,
+            folder_path: str = Config.INDEX_PATH,
+            index_path: str = Config.INDEX_PATH,
+            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
         args = SearchParams(
             query=query,
@@ -87,16 +87,16 @@ class RAGCLI:
     def search_dataset(
             self,
             dataset_path: str,
-            k: int = 10,
-            save_directory: str = "data/output/search_results",
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
+            k: int = Config.DEFAULT_SEARCH_K,
+            save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR,
+            folder_path: str = Config.RAW_ROOT,
+            index_path: str = Config.INDEX_PATH,
+            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> str:
         args = SearchDatasetParams(
             dataset_path=dataset_path,
             k=k,
-            save_directory=save_directory,
+            save_directory=str(save_directory),
             folder_path=folder_path,
             index_path=index_path,
             max_chunk_size=max_chunk_size,
@@ -120,15 +120,15 @@ class RAGCLI:
     def answer(
             self,
             question: str,
-            k: int = 10,
+            k: int = Config.DEFAULT_SEARCH_K,
             model: str = Config.DEFAULT_MODEL,
-            base_url: str = "http://localhost:8000/v1",
-            top_context_chunks: int = 3,
-            max_tokens: int = 256,
-            timeout_seconds: float = 60.0,
-            folder_path: str = "data/raw/vllm-0.10.1",
-            index_path: str = "data/processed/bm25_index",
-            max_chunk_size: int = 2000,
+            base_url: str = Config.DEFAULT_BASE_URL,
+            top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+            max_tokens: int = Config.DEFAULT_MAX_TOKENS,
+            timeout_seconds: float = Config.TIMEOUT_SECONDS_SINGLE_QUESTION,
+            folder_path: str = Config.RAW_ROOT,
+            index_path: str = Config.INDEX_PATH,
+            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
         args = AnswerParams(
             question=question,
@@ -165,13 +165,13 @@ class RAGCLI:
             self,
             student_search_results_path: str,
             model: str = Config.DEFAULT_MODEL,
-            base_url: str = "http://localhost:8000/v1",
-            top_context_chunks: int = 3,
-            max_tokens: int = 256,
-            timeout_seconds: float = 600.0,
+            base_url: str = Config.DEFAULT_BASE_URL,
+            top_context_chunks: int = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
+            max_tokens: int = Config.DEFAULT_MAX_TOKENS,
+            timeout_seconds: float = Config.TIMEOUT_SECONDS_MULTIPLE_QUESTION,
             concurrency: int = 1,
             checkpoint_interval: int = 1,
-            save_directory: str = "data/output/search_results_and_answer",
+            save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER,
     ) -> str:
         args = AnswerDatasetParams(
             student_search_results_path=student_search_results_path,
@@ -182,7 +182,7 @@ class RAGCLI:
             timeout_seconds=timeout_seconds,
             concurrency=concurrency,
             checkpoint_interval=checkpoint_interval,
-            save_directory=save_directory,
+            save_directory=str(save_directory),
         )
 
         output_path = answer_dataset_to_file(
@@ -237,7 +237,7 @@ class RAGCLI:
             {
                 "default_model": Config.DEFAULT_MODEL,
                 "default_base_url": Config.DEFAULT_BASE_URL,
-                "index_path": "data/processed/bm25_index",
+                "index_path": Config.INDEX_PATH,
             },
             indent=2,
         )

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from pathlib import Path
 
 from pydantic import (
@@ -10,6 +9,9 @@ from pydantic import (
     model_validator,
 )
 
+from config import Config
+
+
 # Shared fields
 _K_FIELD = Field(
     default=10,
@@ -18,13 +20,13 @@ _K_FIELD = Field(
     description="Number of results to retrieve (1-1000)",
 )
 _MAX_CHUNK_SIZE_FIELD = Field(
-    default=2000,
+    default=Config.DEFAULT_MAX_CHUNK_SIZE,
     ge=1,
     le=100_000,
     description="Maximum chunk size in characters",
 )
 _MAX_TOKENS_FIELD = Field(
-    default=256,
+    default=Config.DEFAULT_MAX_TOKENS,
     ge=1,
     le=32_768,
     description="Maximum tokens to generate",

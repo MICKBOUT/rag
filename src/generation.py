@@ -147,7 +147,6 @@ def answer_dataset_to_file(
         context_pieces = []
         for src in retrieved_sources[:top_context_chunks]:
             txt = _get_source_text(src)
-            print(txt)
             if txt:
                 context_pieces.append(txt)
         context_str = "\n---\n".join(context_pieces)

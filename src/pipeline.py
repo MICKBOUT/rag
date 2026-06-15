@@ -69,7 +69,7 @@ def search_dataset(
         k: int = 10,
         retriever: Any | None = None,
         corpus: list[dict[str, Any]] | None = None,
-        max_chunk_size: int = 2000) -> dict[str, Any]:
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]:
     if retriever is None or corpus is None:
         retriever, corpus = load_or_build_index(max_chunk_size=max_chunk_size)
 
@@ -108,7 +108,7 @@ def search_dataset_to_file(
         output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER,
         retriever: Any | None = None,
         corpus: list[dict[str, Any]] | None = None,
-        max_chunk_size: int = 2000) -> Path:
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> Path:
     payload = search_dataset(
         dataset_path,
         k=k,
