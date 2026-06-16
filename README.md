@@ -133,7 +133,7 @@ eliminated a class of IoU undercount.
 All generation goes through a locally-served `vllm serve` process on
 `http://localhost:8000/v1`.  No external API is called.
 
-`### `top_context_chunks` context pruning
+### 'top_context_chunks` context pruning
 
 Only the top-*n* retrieved chunks are passed as context to the LLM (default `n=3`),
 avoiding context-window overload on small models.
