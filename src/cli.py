@@ -24,6 +24,96 @@ from validation import (
 
 
 class RAGCLI:
+    """
+    RAGCLI
+    ======
+    Command-line interface wrapper for a Retrieval-Augmented Generation (RAG)
+    pipeline. Provides methods to build and load vector indexes, run searches,
+    generate answers via an LLM, run batch operations over datasets, and
+    evaluate search/answer results.
+
+    Each method performs necessary index loading/creation as needed and may
+    read from or write to disk (indexes, output files). The class methods are
+    thin adapters that convert simple parameter inputs into the underlying
+    pipeline functions and return plain Python serializable results
+    (dicts or string paths).
+
+    Methods
+    -------
+    index(folder_path: str = Config.RAW_ROOT,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
+        Build and save an index from documents found under `folder_path`. If
+        successful, returns a dictionary with:
+        - "index_path": path to the saved index
+        - "documents_indexed": number of documents indexed
+        - "retriever_type": name of the retriever class used
+
+    build_index(folder_path: str = Config.INDEX_PATH,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
+            Alias for `index` kept for CLI ergonomics.
+            Same return structure as `index`.
+
+    search(query: str,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
+        Ensure an index is available (load or build), run a nearest-neighbor
+        search for `query` returning the top `k` results. Returns a dict with:
+        - "query": the input query
+        - "k": number of results requested
+        - "results": list of result objects serialized to dict (one per hit)
+
+    search_dataset(dataset_path: str,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> str
+        Run searches for a dataset of queries (located at `dataset_path`) and
+        write aggregated results to `save_directory`. Returns the string path
+        to the generated output file.
+
+    answer(question: str,
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
+        Load or build the index, retrieve relevant context chunks for
+        `question` (using `k` as the search width), and invoke the configured
+        LLM endpoint (`model` and `base_url`) to generate a final answer.
+        `top_context_chunks` controls how many retrieved chunks are provided
+        to the model. Returns the model's generated object serialized to a
+        dict (including answer text and metadata).
+
+    answer_dataset(student_search_results_path: str,
+        save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER) -> str
+        Batch-generate answers for a collection of search results previously
+        produced (e.g., from `search_dataset`). Supports concurrency, periodic
+        checkpointing, and writes outputs to `save_directory`. Returns the
+        path to the output file.
+
+    evaluate(student_results_path: str,
+        threshold: float | None = None) -> dict[str, Any]
+        Evaluate student (predicted) search results against a ground-truth
+        dataset. `minimal_iou_threshold` controls the minimal overlap IoU
+        required to consider a prediction matching a ground-truth item;
+        `threshold` may be used to filter predictions by score if supported.
+        Returns a summary object as a dict containing metrics and aggregate
+        results.
+
+    evaluate_search_results(student_results_path: str,
+        minimal_iou_threshold: float = 0.05) -> dict[str, Any]
+        Convenience wrapper delegating to `evaluate`. Same return structure.
+
+    show_config() -> str
+        Return a JSON-formatted string exposing key configuration values (e.g.,
+        default model, base URL, index path). Useful for quick diagnostics.
+
+    datasets(root: str = "data/datasets") -> dict[str, Any]
+        List dataset files discoverable under `root`. Returns a dict
+        containing:
+        - "root": the resolved root path
+        - "datasets": list of discovered dataset file paths (JSON)
+
+    Notes
+    -----
+    - Methods may perform I/O (reading/writing index files, output files).
+    - Returned dicts are intended to be JSON-serializable for CLI or API usage.
+    - Exceptions from underlying pipeline functions (indexing, searching, model
+      calls, or file I/O) are propagated to the caller; callers should catch
+      and handle them as appropriate.
+    """
     def index(
             self,
             folder_path: str = Config.RAW_ROOT,

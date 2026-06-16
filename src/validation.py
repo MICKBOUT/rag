@@ -45,6 +45,13 @@ _TIMEOUT_FIELD = Field(
 
 
 class StrictBaseModel(BaseModel):
+    """Base model with strict Pydantic configuration.
+
+    Models inheriting from `StrictBaseModel` will forbid extra fields
+    and enforce strict types, reducing surprises when parsing user
+    input.
+    """
+
     model_config = ConfigDict(
         strict=True,
         extra="forbid",
@@ -52,6 +59,18 @@ class StrictBaseModel(BaseModel):
 
 
 def validate_existing_directory(path_str: str) -> str:
+    """Validate that `path_str` points to an existing directory.
+
+    Args:
+        path_str: The path string to validate.
+
+    Returns:
+        The original `path_str` if validation succeeds.
+
+    Raises:
+        ValueError: If the path does not exist or is not a directory.
+    """
+
     path = Path(path_str)
 
     if not path.exists():
@@ -64,6 +83,18 @@ def validate_existing_directory(path_str: str) -> str:
 
 
 def validate_existing_file(path_str: str) -> str:
+    """Validate that `path_str` points to an existing file.
+
+    Args:
+        path_str: The path string to validate.
+
+    Returns:
+        The original `path_str` if validation succeeds.
+
+    Raises:
+        ValueError: If the path does not exist or is not a file.
+    """
+
     path = Path(path_str)
 
     if not path.exists():
@@ -83,6 +114,15 @@ class IndexParams(StrictBaseModel):
     @field_validator("folder_path")
     @classmethod
     def folder_must_exist(cls, value: str) -> str:
+        """Pydantic field validator ensuring the index folder exists.
+
+        Args:
+            value: The folder path string to validate.
+
+        Returns:
+            The validated folder path string.
+        """
+
         return validate_existing_directory(value)
 
 
@@ -96,6 +136,18 @@ class SearchParams(StrictBaseModel):
     @field_validator("query")
     @classmethod
     def query_not_empty(cls, value: str) -> str:
+        """Ensure the `query` field is not empty or whitespace only.
+
+        Args:
+            value: The query string to validate.
+
+        Returns:
+            The validated query string.
+
+        Raises:
+            ValueError: If the query is empty after stripping.
+        """
+
         if not value.strip():
             raise ValueError("query must not be empty")
         return value
@@ -103,6 +155,11 @@ class SearchParams(StrictBaseModel):
     @field_validator("folder_path")
     @classmethod
     def folder_must_exist(cls, value: str) -> str:
+        """Ensure the folder path exists for search operations.
+
+        Delegates to `validate_existing_directory`.
+        """
+
         return validate_existing_directory(value)
 
 
@@ -117,11 +174,25 @@ class SearchDatasetParams(StrictBaseModel):
     @field_validator("dataset_path")
     @classmethod
     def dataset_must_exist(cls, value: str) -> str:
+        """Validate that the provided dataset file exists.
+
+        Args:
+            value: Path to the dataset file.
+
+        Returns:
+            The validated file path string.
+        """
+
         return validate_existing_file(value)
 
     @field_validator("folder_path")
     @classmethod
     def folder_must_exist(cls, value: str) -> str:
+        """Validate that the source folder for the dataset exists.
+
+        Delegates to `validate_existing_directory`.
+        """
+
         return validate_existing_directory(value)
 
 
@@ -140,6 +211,18 @@ class AnswerParams(StrictBaseModel):
     @field_validator("question")
     @classmethod
     def question_not_empty(cls, value: str) -> str:
+        """Ensure the `question` field is not empty or whitespace only.
+
+        Args:
+            value: The question string to validate.
+
+        Returns:
+            The validated question string.
+
+        Raises:
+            ValueError: If the question is empty after stripping.
+        """
+
         if not value.strip():
             raise ValueError("question must not be empty")
         return value
@@ -147,6 +230,18 @@ class AnswerParams(StrictBaseModel):
     @field_validator("model")
     @classmethod
     def model_not_empty(cls, value: str) -> str:
+        """Validate that a non-empty `model` name was provided.
+
+        Args:
+            value: The model name string.
+
+        Returns:
+            The validated model string.
+
+        Raises:
+            ValueError: If the model name is empty after stripping.
+        """
+
         if not value.strip():
             raise ValueError("model must not be empty")
         return value
@@ -154,6 +249,20 @@ class AnswerParams(StrictBaseModel):
     @field_validator("base_url")
     @classmethod
     def base_url_must_be_http(cls, value: str) -> str:
+        """Ensure `base_url` begins with http:// or https://.
+
+        Trims any trailing slash from the value before returning it.
+
+        Args:
+            value: The base URL string to validate.
+
+        Returns:
+            The normalized base URL with no trailing slash.
+
+        Raises:
+            ValueError: If the URL does not start with an allowed scheme.
+        """
+
         if not (
             value.startswith("http://")
             or value.startswith("https://")
@@ -168,10 +277,24 @@ class AnswerParams(StrictBaseModel):
     @field_validator("folder_path")
     @classmethod
     def folder_must_exist(cls, value: str) -> str:
+        """Validate that the folder path exists for answer generation.
+
+        Delegates to `validate_existing_directory`.
+        """
+
         return validate_existing_directory(value)
 
     @model_validator(mode="after")
     def top_chunks_must_be_le_k(self) -> AnswerParams:
+        """Model-level validator ensuring `top_context_chunks <= k`.
+
+        This validator runs after model initialization and raises a
+        `ValueError` if `top_context_chunks` is greater than `k`.
+
+        Returns:
+            The validated model instance (`self`).
+        """
+
         if (
             self.top_context_chunks is not None and
             self.top_context_chunks > self.k
@@ -210,11 +333,29 @@ class AnswerDatasetParams(StrictBaseModel):
     @field_validator("student_search_results_path")
     @classmethod
     def file_must_exist(cls, value: str) -> str:
+        """Validate that the provided student search results file exists.
+
+        Args:
+            value: Path to the student search results file.
+
+        Returns:
+            The validated file path string.
+        """
+
         return validate_existing_file(value)
 
     @field_validator("model")
     @classmethod
     def model_not_empty(cls, value: str) -> str:
+        """Ensure `model` is not empty for dataset answering.
+
+        Args:
+            value: The model string to validate.
+
+        Returns:
+            The validated model string.
+        """
+
         if not value.strip():
             raise ValueError("model must not be empty")
         return value
@@ -222,6 +363,11 @@ class AnswerDatasetParams(StrictBaseModel):
     @field_validator("base_url")
     @classmethod
     def base_url_must_be_http(cls, value: str) -> str:
+        """Validate `base_url` begins with an HTTP scheme and normalize it.
+
+        Returns the value with any trailing slash removed.
+        """
+
         if not (
             value.startswith("http://")
             or value.startswith("https://")
@@ -251,11 +397,29 @@ class EvaluateParams(StrictBaseModel):
     @field_validator("student_results_path")
     @classmethod
     def student_results_must_exist(cls, value: str) -> str:
+        """Validate that the student's results file exists.
+
+        Args:
+            value: Path to the student's results file.
+
+        Returns:
+            The validated file path string.
+        """
+
         return validate_existing_file(value)
 
     @field_validator("dataset_path")
     @classmethod
     def dataset_must_exist(cls, value: str) -> str:
+        """Validate that the dataset file exists for evaluation.
+
+        Args:
+            value: Path to the dataset file.
+
+        Returns:
+            The validated file path string.
+        """
+
         return validate_existing_file(value)
 
 
@@ -265,4 +429,13 @@ class DatasetsParams(StrictBaseModel):
     @field_validator("root")
     @classmethod
     def root_must_exist(cls, value: str) -> str:
+        """Validate that the datasets root directory exists.
+
+        Args:
+            value: Path to the datasets root directory.
+
+        Returns:
+            The validated root path string.
+        """
+
         return validate_existing_directory(value)
