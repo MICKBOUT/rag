@@ -167,10 +167,12 @@ def answer_dataset_to_file(
                     try:
                         current_pieces.pop()
                         context_str = "\n---\n".join(current_pieces)
-                        prediction = predictor(context=context_str, question=question_str)
+                        prediction = predictor(
+                            context=context_str, question=question_str)
                         answer_text = prediction.answer
                     except Exception as retry_e:
-                        answer_text = f"Error generating answer: {str(retry_e)}"
+                        answer_text = f"Error generating answer: {
+                            str(retry_e)}"
                 else:
                     answer_text = f"Error generating answer: {str(e)}"
 
