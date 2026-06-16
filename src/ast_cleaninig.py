@@ -415,7 +415,6 @@ def get_ready_to_index_data(
     docs_root = folder_root
     md_files = [
         file for file in docs_root.rglob("*.md")
-        if not file.name.endswith(".inc.md")
     ]
     for file in tqdm(md_files, "Parsing markdown files"):
         clean_data_lst.extend(
