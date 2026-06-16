@@ -38,7 +38,6 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
 py-modules = [
     "ast_cleaninig",
     "cli",
@@ -52,8 +51,8 @@ py-modules = [
 ]
 
 [tool.mypy]
-mypy_path = "src"
-files = ["src"]
+mypy_path = "student"
+files = ["student"]
 ignore_missing_imports = true
 disable_error_code = ["misc"]
 

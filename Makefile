@@ -1,6 +1,6 @@
 VENV		= .venv
-SRC_DIR		= src
-MAIN		= $(SRC_DIR)/student.py
+SRC_DIR		= student
+MAIN		= $(SRC_DIR)
 PRIVACY=public
 
 install:

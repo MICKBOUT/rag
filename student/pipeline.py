@@ -5,10 +5,10 @@ from typing import Any
 
 from tqdm import tqdm
 
-from indexing import load_or_build_index
-from models import SearchResult
-from retrieval import search
-from config import Config
+from .indexing import load_or_build_index
+from .models import SearchResult
+from .retrieval import search
+from .config import Config
 
 
 @dataclass(slots=True)

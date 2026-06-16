@@ -6,13 +6,12 @@ import fire
 from pydantic import ValidationError
 from litellm.exceptions import InternalServerError
 
-from generation import answer_dataset_to_file, answer_question
-from indexing import build_and_save_index, load_or_build_index
-from pipeline import evaluate_search_results, search_dataset_to_file
-from retrieval import search
-from config import Config
-
-from validation import (
+from .generation import answer_dataset_to_file, answer_question
+from .indexing import build_and_save_index, load_or_build_index
+from .pipeline import evaluate_search_results, search_dataset_to_file
+from .retrieval import search
+from .config import Config
+from .validation import (
     IndexParams,
     SearchParams,
     SearchDatasetParams,

@@ -4,8 +4,8 @@ from typing import Any, cast
 
 import bm25s
 
-from ast_cleaninig import get_ready_to_index_data
-from config import Config
+from .ast_cleaninig import get_ready_to_index_data
+from .config import Config
 
 
 def _metadata_path(index_path: str) -> Path:

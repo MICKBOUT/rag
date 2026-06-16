@@ -9,7 +9,7 @@ from pydantic import (
     model_validator,
 )
 
-from config import Config
+from .config import Config
 
 
 _K_FIELD = Field(

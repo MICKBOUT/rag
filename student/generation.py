@@ -7,9 +7,9 @@ from typing import Sequence, Annotated
 import dspy
 from tqdm import tqdm
 
-from models import GeneratedAnswer
-from retrieval import search
-from config import Config
+from .models import GeneratedAnswer
+from .retrieval import search
+from .config import Config
 
 
 class RAGSignature(dspy.Signature):

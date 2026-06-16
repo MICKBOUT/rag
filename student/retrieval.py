@@ -3,7 +3,7 @@ from typing import Any
 
 import bm25s
 
-from models import SearchResult
+from .models import SearchResult
 
 _STOPWORDS = "en"
 
