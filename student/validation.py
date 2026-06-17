@@ -1,5 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
+import uuid
+import json
 
 from pydantic import (
     BaseModel,
@@ -44,6 +46,7 @@ _TIMEOUT_FIELD = Field(
 )
 
 
+# fire data validation
 class StrictBaseModel(BaseModel):
     """Base model with strict Pydantic configuration.
 
@@ -166,9 +169,9 @@ class SearchParams(StrictBaseModel):
 class SearchDatasetParams(StrictBaseModel):
     dataset_path: str
     k: int = _K_FIELD
-    save_directory: str = "data/output/search_results"
-    folder_path: str = "data/raw/vllm-0.10.1"
-    index_path: str = "data/processed/bm25_index"
+    save_directory: str = Config.DEFAULT_OUTPUT_DIR
+    folder_path: str = Config.RAW_ROOT
+    index_path: str = Config.INDEX_PATH
     max_chunk_size: int = _MAX_CHUNK_SIZE_FIELD
 
     @field_validator("dataset_path")
@@ -182,8 +185,12 @@ class SearchDatasetParams(StrictBaseModel):
         Returns:
             The validated file path string.
         """
+        validate_existing_file(value)
 
-        return validate_existing_file(value)
+        with open(value, "r", encoding="utf-8") as f:
+            content = json.load(f)
+        RagDatasetUnanswered.model_validate(content)
+        return value
 
     @field_validator("folder_path")
     @classmethod
@@ -192,20 +199,19 @@ class SearchDatasetParams(StrictBaseModel):
 
         Delegates to `validate_existing_directory`.
         """
-
         return validate_existing_directory(value)
 
 
 class AnswerParams(StrictBaseModel):
     question: str
     k: int = _K_FIELD
-    model: str = "Qwen/Qwen3-0.6B"
-    base_url: str = "http://localhost:8000/v1"
+    model: str = Config.DEFAULT_MODEL
+    base_url: str = Config.DEFAULT_BASE_URL
     top_context_chunks: int | None = _TOP_CONTEXT_CHUNKS_FIELD
     max_tokens: int = _MAX_TOKENS_FIELD
     timeout_seconds: float = _TIMEOUT_FIELD
-    folder_path: str = "data/raw/vllm-0.10.1"
-    index_path: str = "data/processed/bm25_index"
+    folder_path: str = Config.RAW_ROOT
+    index_path: str = Config.INDEX_PATH
     max_chunk_size: int = _MAX_CHUNK_SIZE_FIELD
 
     @field_validator("question")
@@ -308,27 +314,14 @@ class AnswerParams(StrictBaseModel):
 
 class AnswerDatasetParams(StrictBaseModel):
     student_search_results_path: str
-    model: str = "Qwen/Qwen3-0.6B"
-    base_url: str = "http://localhost:8000/v1"
+    model: str = Config.DEFAULT_MODEL
+    base_url: str = Config.DEFAULT_BASE_URL
     top_context_chunks: int | None = _TOP_CONTEXT_CHUNKS_FIELD
     max_tokens: int = _MAX_TOKENS_FIELD
-    timeout_seconds: float = Field(
-        default=600.0,
-        gt=0.0,
-        le=3600.0,
-    )
-    concurrency: int = Field(
-        default=1,
-        ge=1,
-        le=128,
-    )
-    checkpoint_interval: int = Field(
-        default=1,
-        ge=1,
-    )
-    save_directory: str = (
-        "data/output/search_results_and_answer"
-    )
+    timeout_seconds: float = Field(default=600.0, gt=0.0, le=3600.0)
+    concurrency: int = Field(default=1, ge=1, le=128)
+    checkpoint_interval: int = Field(default=1, ge=1)
+    save_directory: str = Config.DEFAULT_OUTPUT_DIR_ANSWER
 
     @field_validator("student_search_results_path")
     @classmethod
@@ -383,16 +376,8 @@ class AnswerDatasetParams(StrictBaseModel):
 class EvaluateParams(StrictBaseModel):
     student_results_path: str
     dataset_path: str
-    minimal_iou_threshold: float = Field(
-        default=0.05,
-        ge=0.0,
-        le=1.0,
-    )
-    threshold: float | None = Field(
-        default=None,
-        ge=0.0,
-        le=1.0,
-    )
+    minimal_iou_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
+    threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("student_results_path")
     @classmethod
@@ -405,7 +390,6 @@ class EvaluateParams(StrictBaseModel):
         Returns:
             The validated file path string.
         """
-
         return validate_existing_file(value)
 
     @field_validator("dataset_path")
@@ -419,8 +403,12 @@ class EvaluateParams(StrictBaseModel):
         Returns:
             The validated file path string.
         """
-
-        return validate_existing_file(value)
+        validate_existing_file(value)
+        with open(value, "r", encoding="utf-8") as f:
+            content = json.load(f)
+        RagDatasetAnswered.model_validate(content)
+        f
+        return value
 
 
 class DatasetsParams(StrictBaseModel):
@@ -439,3 +427,47 @@ class DatasetsParams(StrictBaseModel):
         """
 
         return validate_existing_directory(value)
+
+
+# datasets validataion
+class MinimalSource(BaseModel):
+    file_path: str
+    first_character_index: int
+    last_character_index: int
+
+
+class UnansweredQuestion(BaseModel):
+    question_id: str
+    question: str
+
+
+class RagDatasetUnanswered(BaseModel):
+    rag_questions: list[UnansweredQuestion]
+
+
+class AnsweredQuestion(UnansweredQuestion):
+    sources: list[MinimalSource]
+    answer: str
+
+
+class RagDatasetAnswered(BaseModel):
+    rag_questions: list[AnsweredQuestion]
+
+
+class MinimalSearchResults(BaseModel):
+    question_id: str
+    question: str
+    retrieved_sources: list[MinimalSource]
+
+
+class MinimalAnswer(MinimalSearchResults):
+    answer: str
+
+
+class StudentSearchResults(BaseModel):
+    search_results: list[MinimalSearchResults]
+    k: int
+
+
+class StudentSearchResultsAndAnswer(StudentSearchResults):
+    search_results: list[MinimalAnswer]
