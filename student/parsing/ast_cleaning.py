@@ -33,8 +33,9 @@ def get_ready_to_index_data(
     """
     candidate = Path(folder_path)
     if candidate.is_absolute():
-        return candidate
-    folder_root = (Config.REPO_ROOT / candidate).resolve()
+        folder_root = candidate
+    else:
+        folder_root = (Config.REPO_ROOT / candidate).resolve()
 
     clean_data_lst: list[IndexChunk] = []
     py_files = list(folder_root.rglob("*.py"))

@@ -86,7 +86,6 @@ def get_ready_to_index_md_file(
                 break
         return start_line, end_line
 
-
     def _heading_at_offset(
             lines: list[str],
             line_starts: list[int],

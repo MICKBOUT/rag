@@ -312,7 +312,7 @@ def format_callable_chunk(
 
 
 def get_ready_to_index_py_file(
-        file_name: str | Path) -> None:
+        file_name: str | Path) -> list[IndexChunk]:
     """
     Read and parse a Python file, extract classes/functions, and append
     formatted chunks to the enclosing list.
