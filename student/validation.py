@@ -407,7 +407,6 @@ class EvaluateParams(StrictBaseModel):
         with open(value, "r", encoding="utf-8") as f:
             content = json.load(f)
         RagDatasetAnswered.model_validate(content)
-        f
         return value
 
 

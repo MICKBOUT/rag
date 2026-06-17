@@ -47,11 +47,6 @@ class RAGCLI:
         - "documents_indexed": number of documents indexed
         - "retriever_type": name of the retriever class used
 
-    build_index(folder_path: str = Config.INDEX_PATH,
-        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
-            Alias for `index` kept for CLI ergonomics.
-            Same return structure as `index`.
-
     search(query: str,
         max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
         Ensure an index is available (load or build), run a nearest-neighbor
@@ -59,12 +54,6 @@ class RAGCLI:
         - "query": the input query
         - "k": number of results requested
         - "results": list of result objects serialized to dict (one per hit)
-
-    search_dataset(dataset_path: str,
-        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> str
-        Run searches for a dataset of queries (located at `dataset_path`) and
-        write aggregated results to `save_directory`. Returns the string path
-        to the generated output file.
 
     answer(question: str,
         max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
@@ -99,12 +88,6 @@ class RAGCLI:
         Return a JSON-formatted string exposing key configuration values (e.g.,
         default model, base URL, index path). Useful for quick diagnostics.
 
-    datasets(root: str = "data/datasets") -> dict[str, Any]
-        List dataset files discoverable under `root`. Returns a dict
-        containing:
-        - "root": the resolved root path
-        - "datasets": list of discovered dataset file paths (JSON)
-
     Notes
     -----
     - Methods may perform I/O (reading/writing index files, output files).
@@ -135,14 +118,6 @@ class RAGCLI:
             "documents_indexed": len(corpus),
             "retriever_type": type(retriever).__name__,
         }
-
-    def build_index(
-            self,
-            folder_path: str = Config.INDEX_PATH,
-            index_path: str = Config.INDEX_PATH,
-            max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
-    ) -> dict[str, Any]:
-        return self.index(folder_path, index_path, max_chunk_size)
 
     def search(
             self,
@@ -308,38 +283,14 @@ class RAGCLI:
         )
         return summary.to_dict()
 
-    def evaluate_search_results(
-            self,
-            student_results_path: str,
-            dataset_path: str,
-            minimal_iou_threshold: float = 0.05,
-    ) -> dict[str, Any]:
-        return self.evaluate(
-            student_results_path,
-            dataset_path,
-            minimal_iou_threshold=minimal_iou_threshold,
-        )
-
     def show_config(self) -> str:
-        return json.dumps(
-            {
+        return json.dumps({
                 "default_model": Config.DEFAULT_MODEL,
                 "default_base_url": Config.DEFAULT_BASE_URL,
                 "index_path": Config.INDEX_PATH,
             },
-            indent=2,
+            indent=2
         )
-
-    def datasets(self, root: str = "data/datasets") -> dict[str, Any]:
-        args = DatasetsParams(root=root)
-        root_path = Path(args.root)
-        return {
-            "root": str(root_path),
-            "datasets": [
-                str(path)
-                for path in sorted(root_path.rglob("*.json"))
-            ],
-        }
 
 
 def main() -> None:
@@ -366,7 +317,7 @@ def main() -> None:
     except InternalServerError:
         print(f"{error_str} Please make sure your local vLLM/inference "
               "server is active and listening on the configured port "
-              "(default: http://localhost:8000/v1).")
+              f"(default: {Config.DEFAULT_BASE_URL}).")
 
 
 if __name__ == "__main__":
