@@ -18,7 +18,7 @@ from .validation import (
     AnswerParams,
     AnswerDatasetParams,
     EvaluateParams,
-    SearchDatasetOutput,
+    MinimalAnswer,
 )
 
 
@@ -222,7 +222,13 @@ class RAGCLI:
             timeout_seconds=args.timeout_seconds,
             retriever=retriever,
         )
-        return generated_answer
+        MinimalAnswer(
+                answer=generated_answer.answer,
+                question_id=generated_answer.question_id,
+                question=generated_answer.question,
+                retrieved_sources=generated_answer.retrieved_sources,
+            )
+        return generated_answer.to_dict()
 
     def answer_dataset(
             self,

@@ -126,11 +126,6 @@ class GeneratedAnswer:
     question: str
     answer: str
     retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
-    model: str = ""
-    base_url: str = ""
-    max_tokens: int = 0
-    search_k: int = 0
-    top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the `GeneratedAnswer` to a JSON-serializable dict.

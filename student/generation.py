@@ -10,7 +10,6 @@ from tqdm import tqdm
 from .models import GeneratedAnswer
 from .retrieval import search
 from .config import Config
-from .validation import MinimalAnswer
 
 
 class RAGSignature(dspy.Signature):
@@ -129,7 +128,7 @@ def answer_question(
         prediction = predictor(context=context_str, question=question)
 
     retrieved_sources = [res.to_source_dict() for res in results]
-    return MinimalAnswer(
+    return GeneratedAnswer(
         question_id="single_query",
         question=question,
         retrieved_sources=retrieved_sources,
@@ -267,11 +266,6 @@ def answer_dataset_to_file(
             question=question,
             answer=answer_text,
             retrieved_sources=retrieved_sources,
-            model=model,
-            base_url=base_url,
-            max_tokens=max_tokens,
-            search_k=search_k,
-            top_context_chunks=top_context_chunks,
         )
         return gen_answer.to_dict()
 
