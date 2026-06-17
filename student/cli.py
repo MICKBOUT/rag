@@ -19,6 +19,7 @@ from .validation import (
     AnswerDatasetParams,
     EvaluateParams,
     MinimalAnswer,
+    AnswerDatasetOutput
 )
 
 
@@ -265,6 +266,7 @@ class RAGCLI:
             concurrency=args.concurrency,
             checkpoint_interval=args.checkpoint_interval,
         )
+        AnswerDatasetOutput(file_path=output_path)
         return str(output_path)
 
     def evaluate(
