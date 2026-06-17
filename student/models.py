@@ -110,7 +110,7 @@ class GeneratedAnswer:
 
     Attributes:
         question_id: Identifier for the question this answer corresponds to.
-        question_str: The original question text.
+        question: The original question text.
         answer: Generated answer text.
         retrieved_sources: List of source descriptors used to produce the
             answer (each is a dict with `file_path`, `first_character_index`,
@@ -123,7 +123,7 @@ class GeneratedAnswer:
     """
 
     question_id: str
-    question_str: str
+    question: str
     answer: str
     retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
     model: str = ""
@@ -141,12 +141,7 @@ class GeneratedAnswer:
 
         return {
             "question_id": self.question_id,
-            "question_str": self.question_str,
-            "answer": self.answer,
+            "question": self.question,
             "retrieved_sources": self.retrieved_sources,
-            "model": self.model,
-            "base_url": self.base_url,
-            "max_tokens": self.max_tokens,
-            "search_k": self.search_k,
-            "top_context_chunks": self.top_context_chunks,
+            "answer": self.answer,
         }

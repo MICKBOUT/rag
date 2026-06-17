@@ -43,7 +43,8 @@ def get_ready_to_index_data(
         clean_data_lst.extend(
             get_ready_to_index_py_file(file))
 
-    md_files = list(folder_root.rglob("*.md"))
+    md_files = list(folder_root.rglob("*.md")) + list(
+        folder_root.rglob("*.txt"))
     for file in tqdm(md_files, "Parsing markdown files"):
         clean_data_lst.extend(
             get_ready_to_index_md_file(file))

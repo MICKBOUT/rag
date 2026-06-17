@@ -18,7 +18,7 @@ from .validation import (
     AnswerParams,
     AnswerDatasetParams,
     EvaluateParams,
-    DatasetsParams,
+    SearchDatasetOutput,
 )
 
 
@@ -170,15 +170,15 @@ class RAGCLI:
             args.index_path,
             max_chunk_size=args.max_chunk_size,
         )
-        output_path = search_dataset_to_file(
+        output_path = str(search_dataset_to_file(
             args.dataset_path,
             k=args.k,
             output_dir=args.save_directory,
             retriever=retriever,
             corpus=corpus,
             max_chunk_size=args.max_chunk_size
-        )
-        return str(output_path)
+        ))
+        return output_path
 
     def answer(
             self,
@@ -211,7 +211,7 @@ class RAGCLI:
             args.index_path,
             max_chunk_size=args.max_chunk_size,
         )
-        generated = answer_question(
+        generated_answer = answer_question(
             args.question,
             corpus,
             model=args.model,
@@ -222,7 +222,7 @@ class RAGCLI:
             timeout_seconds=args.timeout_seconds,
             retriever=retriever,
         )
-        return generated.to_dict()
+        return generated_answer
 
     def answer_dataset(
             self,

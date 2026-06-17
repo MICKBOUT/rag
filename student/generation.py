@@ -10,6 +10,7 @@ from tqdm import tqdm
 from .models import GeneratedAnswer
 from .retrieval import search
 from .config import Config
+from .validation import MinimalAnswer
 
 
 class RAGSignature(dspy.Signature):
@@ -128,16 +129,11 @@ def answer_question(
         prediction = predictor(context=context_str, question=question)
 
     retrieved_sources = [res.to_source_dict() for res in results]
-    return GeneratedAnswer(
+    return MinimalAnswer(
         question_id="single_query",
-        question_str=question,
-        answer=prediction.answer,
+        question=question,
         retrieved_sources=retrieved_sources,
-        model=model,
-        base_url=base_url,
-        max_tokens=max_tokens,
-        search_k=search_k,
-        top_context_chunks=top_context_chunks,
+        answer=prediction.answer,
     )
 
 
@@ -164,7 +160,7 @@ def answer_dataset_to_file(
         student_search_results_path: Path to the JSON file containing
             search results. The file should contain a top-level key
             "search_results" which is a list of items with
-            `question_id`, `question_str`, and `retrieved_sources`.
+            `question_id`, `question`, and `retrieved_sources`.
         output_dir: Directory where generated output will be written.
         model: LM model name to use for generation.
         base_url: Base API URL for the LM provider.
@@ -222,7 +218,7 @@ def answer_dataset_to_file(
 
         Args:
             item: A single element from the input search results. Expected
-                to contain `question_id`, `question_str`, and
+                to contain `question_id`, `question`, and
                 `retrieved_sources`.
 
         Returns:
@@ -230,7 +226,7 @@ def answer_dataset_to_file(
             JSON serialization and writing into the output file.
         """
 
-        question_str = item.get("question_str", "")
+        question = item.get("question", "")
         question_id = item.get("question_id", "")
         retrieved_sources = item.get("retrieved_sources", [])
 
@@ -250,7 +246,7 @@ def answer_dataset_to_file(
             predictor = dspy.ChainOfThought(RAGSignature)
             try:
                 prediction = predictor(
-                    context=context_str, question=question_str)
+                    context=context_str, question=question)
                 answer_text = prediction.answer
             except Exception as e:
                 if "context window" in str(e).lower() and current_pieces:
@@ -258,7 +254,7 @@ def answer_dataset_to_file(
                         current_pieces.pop()
                         context_str = "\n---\n".join(current_pieces)
                         prediction = predictor(
-                            context=context_str, question=question_str)
+                            context=context_str, question=question)
                         answer_text = prediction.answer
                     except Exception as retry_e:
                         answer_text = f"Error generating answer: {
@@ -268,7 +264,7 @@ def answer_dataset_to_file(
 
         gen_answer = GeneratedAnswer(
             question_id=str(question_id),
-            question_str=question_str,
+            question=question,
             answer=answer_text,
             retrieved_sources=retrieved_sources,
             model=model,
