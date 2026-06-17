@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import bm25s
 
-from .ast_cleaninig import get_ready_to_index_data
+from .parsing import get_ready_to_index_data
 from .config import Config
 
 
