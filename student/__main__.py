@@ -33,5 +33,6 @@ sys.unraisablehook = _suppress_event_loop_del_noise
 def main() -> None:
     cli_main()
 
+
 if __name__ == "__main__":
     main()

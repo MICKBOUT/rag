@@ -183,7 +183,6 @@ def answer_dataset_to_file(
         payload = json.load(f)
 
     search_results = payload.get("search_results", [])
-    search_k = payload.get("k", Config.DEFAULT_SEARCH_K)
 
     answers = []
     if output_path.exists():
