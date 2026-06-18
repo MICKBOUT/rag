@@ -494,7 +494,7 @@ class MinimalSearchResults(BaseModel):
     def to_dict(self):
         return {
             "question_id": self.question_id,
-            "question": self.question,
+            "question": self.question_str,
             "retrieved_sources": self.retrieved_sources,
         }
 

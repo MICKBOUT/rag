@@ -4,6 +4,7 @@ from typing import Any
 import bm25s
 
 from .models import SearchResult
+from .config import Config
 
 _STOPWORDS = "en"
 
@@ -37,7 +38,7 @@ def search(
         question: str,
         retriever: bm25s.BM25,
         corpus: Sequence[dict[str, Any]],
-        k: int = 5) -> list[SearchResult]:
+        k: int = Config.DEFAULT_SEARCH_K) -> list[SearchResult]:
     """Run BM25 retrieval for a question and return typed search results.
 
     This function tokenizes the question, retrieves the top-k documents

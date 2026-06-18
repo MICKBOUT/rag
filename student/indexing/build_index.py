@@ -8,6 +8,7 @@ from ..config import Config
 from ..parsing import get_ready_to_index_data
 from ..validation import IndexParams
 
+
 def _entry_text(entry: dict[str, Any]) -> str:
     """Return the text content for a corpus entry.
 
@@ -19,7 +20,6 @@ def _entry_text(entry: dict[str, Any]) -> str:
         The `text` value coerced to `str`, or an empty string if
         missing.
     """
-
     return str(entry.get("text", ""))
 
 
@@ -31,7 +31,6 @@ def _write_chunks(corpus: list[dict[str, Any]]) -> None:
     Args:
         corpus: A list of corpus entry dicts to persist.
     """
-
     path = resolve_repo_path(Config.CHUNKS_PATH)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -57,25 +56,22 @@ def _limit_entry_text(
     Returns:
         A dict representing the possibly-limited entry.
     """
-
-    text = _entry_text(entry)
-    span_length = max(0, (
-            int(entry.get("first_character_index", 0)) -
-            int(entry.get("last_character_index", 0))
+    text = entry.get("text", "")
+    span_length = max(
+        0, (
+            int(entry["last_character_index"]) -
+            int(entry["first_character_index"])
         )
     )
 
-    if len(text) <= max_chunk_size and span_length <= max_chunk_size:
+    limited_entry = dict(entry)
+    if span_length <= max_chunk_size:
         return entry
 
-    limited_entry = dict(entry)
-
-    if len(text) > max_chunk_size:
-        limited_entry["text"] = text[:max_chunk_size].rstrip()
-
-    if span_length > max_chunk_size:
-        first = int(entry.get("first_character_index", 0))
-        limited_entry["last_character_index"] = first + max_chunk_size
+    limited_entry["text"] = text[:max_chunk_size]
+    limited_entry["last_character_index"] = (
+        limited_entry["first_character_index"] + max_chunk_size
+    )
 
     return limited_entry
 
@@ -93,7 +89,6 @@ def _write_index_metadata(
             index.
         folder_path: The source folder path that was indexed.
     """
-
     metadata = {
         "max_chunk_size": max_chunk_size,
         "folder_path": folder_path,
@@ -128,7 +123,6 @@ def build_and_save_index(
         ValueError: If no corpus entries were produced from the source
             folder.
     """
-
     resolved_index_path = resolve_repo_path(index_params.index_path)
     corpus = [
         _limit_entry_text(entry, index_params.max_chunk_size)

@@ -151,7 +151,7 @@ class RAGCLI:
 
         result = MinimalSearchResults(
             question_id="Single question (No id)",
-            question=search_params.question,
+            question_str=search_params.question,
             retrieved_sources=retrieved_sources
         )
 
