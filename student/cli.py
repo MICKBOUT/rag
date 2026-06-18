@@ -266,7 +266,7 @@ class RAGCLI:
             concurrency=args.concurrency,
             checkpoint_interval=args.checkpoint_interval,
         )
-        AnswerDatasetOutput(file_path=output_path)
+        AnswerDatasetOutput(file_path=str(output_path))
         return str(output_path)
 
     def evaluate(
