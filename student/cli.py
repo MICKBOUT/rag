@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 from typing import Any
 
 import fire
@@ -21,6 +20,7 @@ from .validation import (
     MinimalAnswer,
     AnswerDatasetOutput,
     MinimalSearchResults,
+    FileStudentSearchResults,
 )
 
 
@@ -161,7 +161,7 @@ class RAGCLI:
             self,
             dataset_path: str,
             k: int = Config.DEFAULT_SEARCH_K,
-            save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR,
+            save_directory: str = Config.DEFAULT_OUTPUT_DIR,
             folder_path: str = Config.RAW_ROOT,
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
@@ -181,14 +181,18 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         ))
 
-        output_path = str(search_dataset_to_file(
+        output_path = search_dataset_to_file(
             search_dataset_params.dataset_path,
             k=search_dataset_params.k,
             output_dir=search_dataset_params.save_directory,
             retriever=retriever,
             corpus=corpus,
             max_chunk_size=search_dataset_params.max_chunk_size
-        ))
+        )
+        FileStudentSearchResults(
+            file_path=output_path
+        )
+
         return output_path
 
     def answer(
@@ -253,7 +257,7 @@ class RAGCLI:
             timeout_seconds: float = Config.TIMEOUT_SECONDS_MULTIPLE_QUESTION,
             concurrency: int = 1,
             checkpoint_interval: int = 1,
-            save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER,
+            save_directory: str = Config.DEFAULT_OUTPUT_DIR_ANSWER,
     ) -> str:
         args = AnswerDatasetParams(
             student_search_results_path=student_search_results_path,

@@ -43,7 +43,7 @@ def _retrieved_sources(
 
 
 def _save_search_results(
-        payload: dict[str, Any], output_path: str | Path) -> Path:
+        payload: dict[str, Any], path: Path) -> str:
     """Persist a search-results payload to `output_path` as JSON.
 
     Args:
@@ -54,13 +54,12 @@ def _save_search_results(
         The `Path` to the written file.
     """
 
-    path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    return path
+    return str(path)
 
 
 def search_dataset(
@@ -113,10 +112,10 @@ def search_dataset_to_file(
         dataset_path: str | Path,
         *,
         k: int = 10,
-        output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER,
+        output_dir: str = Config.DEFAULT_OUTPUT_DIR_ANSWER,
         retriever: Any | None = None,
         corpus: list[dict[str, Any]] | None = None,
-        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> Path:
+        max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> str:
     """Run `search_dataset` and write the search results to a file.
 
     Args:
@@ -133,7 +132,7 @@ def search_dataset_to_file(
     """
 
     payload = search_dataset(
-        dataset_path,
+        dataset_path=dataset_path,
         k=k,
         retriever=retriever,
         corpus=corpus,

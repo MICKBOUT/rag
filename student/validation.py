@@ -170,7 +170,7 @@ class SearchParams(StrictBaseModel):
 class SearchDatasetParams(StrictBaseModel):
     dataset_path: str
     k: int = _K_FIELD
-    save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR
+    save_directory: str = Config.DEFAULT_OUTPUT_DIR
     folder_path: str = Config.RAW_ROOT
     index_path: str = Config.INDEX_PATH
     max_chunk_size: int = _MAX_CHUNK_SIZE_FIELD
@@ -322,7 +322,7 @@ class AnswerDatasetParams(StrictBaseModel):
     timeout_seconds: float = Field(default=600.0, gt=0.0, le=3600.0)
     concurrency: int = Field(default=1, ge=1, le=128)
     checkpoint_interval: int = Field(default=1, ge=1)
-    save_directory: str | Path = Config.DEFAULT_OUTPUT_DIR_ANSWER
+    save_directory: str = Config.DEFAULT_OUTPUT_DIR_ANSWER
 
     @field_validator("student_search_results_path")
     @classmethod
@@ -445,7 +445,23 @@ class AnswerDatasetOutput(StrictBaseModel):
         return value
 
 
-# datasets validataion
+class FileStudentSearchResults(BaseModel):
+    file_path: str
+
+    @field_validator("file_path")
+    @classmethod
+    def dataset_check(cls, value: str) -> str:
+        validate_existing_file(value)
+        with open(value, "r", encoding="utf-8") as f:
+            content = json.load(f)
+
+        StudentSearchResults(
+            search_results=content["search_results"],
+            k=content["k"],
+        )
+        return value
+
+
 class MinimalSource(BaseModel):
     file_path: str
     first_character_index: int
@@ -470,10 +486,9 @@ class RagDatasetAnswered(BaseModel):
     rag_questions: list[AnsweredQuestion]
 
 
-# not implemented yet
 class MinimalSearchResults(BaseModel):
     question_id: str
-    question: str
+    question_str: str
     retrieved_sources: list[MinimalSource]
 
     def to_dict(self):

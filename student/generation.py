@@ -139,7 +139,7 @@ def answer_question(
 def answer_dataset_to_file(
     student_search_results_path: str | Path,
     *,
-    output_dir: str | Path = Config.DEFAULT_OUTPUT_DIR,
+    output_dir: str = Config.DEFAULT_OUTPUT_DIR,
     model: str = Config.DEFAULT_MODEL,
     base_url: str = Config.DEFAULT_BASE_URL,
     top_context_chunks: int | None = Config.DEFAULT_TOP_CONTEXT_CHUNKS,
@@ -290,5 +290,5 @@ def answer_dataset_to_file(
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump({"answers": answers}, f, indent=2, ensure_ascii=False)
-
+    print(answers)
     return output_path
