@@ -129,7 +129,7 @@ def answer_question(
 
     retrieved_sources = [res.to_source_dict() for res in results]
     return GeneratedAnswer(
-        question_id="single_query",
+        question_id="single_question",
         question=question,
         retrieved_sources=retrieved_sources,
         answer=prediction.answer,

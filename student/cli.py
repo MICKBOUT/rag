@@ -19,7 +19,8 @@ from .validation import (
     AnswerDatasetParams,
     EvaluateParams,
     MinimalAnswer,
-    AnswerDatasetOutput
+    AnswerDatasetOutput,
+    MinimalSearchResults,
 )
 
 
@@ -48,11 +49,11 @@ class RAGCLI:
         - "documents_indexed_count": number of documents indexed
         - "retriever_type": name of the retriever class used
 
-    search(query: str,
+    search(question: str,
         max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
         Ensure an index is available (load or build), run a nearest-neighbor
-        search for `query` returning the top `k` results. Returns a dict with:
-        - "query": the input query
+        search for `question` returning the top `k` results. Returns a dict with:
+        - "question": the input question
         - "k": number of results requested
         - "results": list of result objects serialized to dict (one per hit)
 
@@ -118,14 +119,14 @@ class RAGCLI:
 
     def search(
             self,
-            query: str,
+            question: str,
             k: int = Config.DEFAULT_SEARCH_K,
             folder_path: str = Config.INDEX_PATH,
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
         search_params = SearchParams(
-            query=query,
+            question=question,
             k=k,
             folder_path=folder_path,
             index_path=index_path,
@@ -139,14 +140,20 @@ class RAGCLI:
         )
 
         retriever, corpus = load_or_build_index(index_params=index_params)
+
         results = search(
-            query=search_params.query,
+            question=search_params.question,
             retriever=retriever,
             corpus=corpus,
             k=search_params.k
         )
+
+        minimal_search_results = MinimalSearchResults(
+            question_id=results.question_id,
+            question=results.results.question,
+        )
         return {
-            "query": search_params.query,
+            "question": search_params.question,
             "k": search_params.k,
             "results": [result.to_dict() for result in results],
         }

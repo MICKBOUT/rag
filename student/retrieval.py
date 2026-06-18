@@ -34,18 +34,18 @@ def _resolve_entry(
 
 
 def search(
-        query: str,
+        question: str,
         retriever: bm25s.BM25,
         corpus: Sequence[dict[str, Any]],
         k: int = 5) -> list[SearchResult]:
-    """Run BM25 retrieval for a query and return typed search results.
+    """Run BM25 retrieval for a question and return typed search results.
 
-    This function tokenizes the query, retrieves the top-k documents
+    This function tokenizes the question, retrieves the top-k documents
     using the provided `retriever`, and converts each hit into a
     `SearchResult` instance with rank and score information.
 
     Args:
-        query: Query string to search for.
+        question: question string to search for.
         retriever: A `bm25s.BM25` retriever instance already indexed.
         corpus: The corpus sequence used by the retriever; used to
             resolve doc indices to full entries if necessary.
@@ -55,17 +55,18 @@ def search(
         A list of `SearchResult` objects in rank order (1..k).
     """
 
-    query_tokens = bm25s.tokenize(query, stopwords=_STOPWORDS)
-    docs, scores = retriever.retrieve(query_tokens, k=k)
+    question_tokens = bm25s.tokenize(question, stopwords=_STOPWORDS)
+    docs, scores = retriever.retrieve(question_tokens, k=k)
 
     results: list[SearchResult] = []
     for rank, raw in enumerate(docs[0], start=1):
         entry = _resolve_entry(raw, corpus)
         results.append(
             SearchResult.from_entry(
-                entry,
+                entry=entry,
                 rank=rank,
                 score=float(scores[0, rank - 1]),
+                question=question
             )
         )
 

@@ -131,29 +131,29 @@ class IndexParams(StrictBaseModel):
 
 
 class SearchParams(StrictBaseModel):
-    query: str
+    question: str
     k: int = _K_FIELD
     folder_path: str = Config.RAW_ROOT
     index_path: str = Config.INDEX_PATH
     max_chunk_size: int = _MAX_CHUNK_SIZE_FIELD
 
-    @field_validator("query")
+    @field_validator("question")
     @classmethod
-    def query_not_empty(cls, value: str) -> str:
-        """Ensure the `query` field is not empty or whitespace only.
+    def question_not_empty(cls, value: str) -> str:
+        """Ensure the `question` field is not empty or whitespace only.
 
         Args:
-            value: The query string to validate.
+            value: The question string to validate.
 
         Returns:
-            The validated query string.
+            The validated question string.
 
         Raises:
-            ValueError: If the query is empty after stripping.
+            ValueError: If the question is empty after stripping.
         """
 
         if not value.strip():
-            raise ValueError("query must not be empty")
+            raise ValueError("question must not be empty")
         return value
 
     @field_validator("folder_path")

@@ -28,6 +28,7 @@ class SearchResult:
     first_character_index: int
     last_character_index: int
     kind: str
+    question: str
     heading_path: list[str] = field(default_factory=list)
     symbol: str | None = None
     calls: list[str] = field(default_factory=list)
@@ -36,6 +37,7 @@ class SearchResult:
     def from_entry(
             cls,
             entry: dict[str, Any],
+            question: str,
             *,
             rank: int,
             score: float) -> SearchResult:
@@ -61,6 +63,7 @@ class SearchResult:
             heading_path=list(entry.get("heading_path") or []),
             symbol=entry.get("symbol"),
             calls=list(entry.get("calls") or []),
+            question=question,
         )
 
     def to_dict(self) -> dict[str, Any]:
