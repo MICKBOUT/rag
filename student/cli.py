@@ -105,6 +105,7 @@ class RAGCLI:
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
+
         index_params = IndexParams(
             folder_path=folder_path,
             index_path=index_path,
@@ -134,13 +135,11 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        index_params = IndexParams(
+        retriever, corpus = load_or_build_index(index_params=IndexParams(
             folder_path=folder_path,
             index_path=index_path,
             max_chunk_size=max_chunk_size,
-        )
-
-        retriever, corpus = load_or_build_index(index_params=index_params)
+        ))
 
         search_result = search(
             question=search_params.question,
@@ -176,13 +175,11 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        index_params = IndexParams(
+        retriever, corpus = load_or_build_index(index_params=IndexParams(
             folder_path=folder_path,
             index_path=index_path,
             max_chunk_size=max_chunk_size,
-        )
-
-        retriever, corpus = load_or_build_index(index_params=index_params)
+        ))
 
         output_path = str(search_dataset_to_file(
             search_dataset_params.dataset_path,
@@ -220,13 +217,11 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        index_params = IndexParams(
+        retriever, corpus = load_or_build_index(IndexParams(
             folder_path=folder_path,
             index_path=index_path,
             max_chunk_size=max_chunk_size,
-        )
-
-        retriever, corpus = load_or_build_index(index_params=index_params)
+        ))
 
         generated_answer = answer_question(
             question=answer_params.question,
