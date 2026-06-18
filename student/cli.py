@@ -45,7 +45,7 @@ class RAGCLI:
         Build and save an index from documents found under `folder_path`. If
         successful, returns a dictionary with:
         - "index_path": path to the saved index
-        - "documents_indexed": number of documents indexed
+        - "documents_indexed_count": number of documents indexed
         - "retriever_type": name of the retriever class used
 
     search(query: str,
@@ -103,20 +103,16 @@ class RAGCLI:
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
-        args = IndexParams(
+        index_params = IndexParams(
             folder_path=folder_path,
             index_path=index_path,
             max_chunk_size=max_chunk_size,
         )
 
-        retriever, corpus = build_and_save_index(
-            args.folder_path,
-            args.index_path,
-            max_chunk_size=args.max_chunk_size,
-        )
+        retriever, corpus = build_and_save_index(index_params)
         return {
-            "index_path": args.index_path,
-            "documents_indexed": len(corpus),
+            "index_path": index_params.index_path,
+            "documents_indexed_count": len(corpus),
             "retriever_type": type(retriever).__name__,
         }
 
@@ -128,7 +124,7 @@ class RAGCLI:
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
-        args = SearchParams(
+        search_params = SearchParams(
             query=query,
             k=k,
             folder_path=folder_path,
@@ -136,15 +132,22 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        retriever, corpus = load_or_build_index(
-            args.folder_path,
-            args.index_path,
-            max_chunk_size=args.max_chunk_size,
+        index_params = IndexParams(
+            folder_path=folder_path,
+            index_path=index_path,
+            max_chunk_size=max_chunk_size,
         )
-        results = search(args.query, retriever, corpus, k=args.k)
+
+        retriever, corpus = load_or_build_index(index_params=index_params)
+        results = search(
+            query=search_params.query,
+            retriever=retriever,
+            corpus=corpus,
+            k=search_params.k
+        )
         return {
-            "query": args.query,
-            "k": args.k,
+            "query": search_params.query,
+            "k": search_params.k,
             "results": [result.to_dict() for result in results],
         }
 
@@ -157,7 +160,7 @@ class RAGCLI:
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> str:
-        args = SearchDatasetParams(
+        search_dataset_params = SearchDatasetParams(
             dataset_path=dataset_path,
             k=k,
             save_directory=str(save_directory),
@@ -166,18 +169,21 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        retriever, corpus = load_or_build_index(
-            args.folder_path,
-            args.index_path,
-            max_chunk_size=args.max_chunk_size,
+        index_params = IndexParams(
+            folder_path=folder_path,
+            index_path=index_path,
+            max_chunk_size=max_chunk_size,
         )
+
+        retriever, corpus = load_or_build_index(index_params=index_params)
+
         output_path = str(search_dataset_to_file(
-            args.dataset_path,
-            k=args.k,
-            output_dir=args.save_directory,
+            search_dataset_params.dataset_path,
+            k=search_dataset_params.k,
+            output_dir=search_dataset_params.save_directory,
             retriever=retriever,
             corpus=corpus,
-            max_chunk_size=args.max_chunk_size
+            max_chunk_size=search_dataset_params.max_chunk_size
         ))
         return output_path
 
@@ -194,7 +200,7 @@ class RAGCLI:
             index_path: str = Config.INDEX_PATH,
             max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE,
     ) -> dict[str, Any]:
-        args = AnswerParams(
+        answer_params = AnswerParams(
             question=question,
             k=k,
             model=model,
@@ -207,20 +213,23 @@ class RAGCLI:
             max_chunk_size=max_chunk_size,
         )
 
-        retriever, corpus = load_or_build_index(
-            args.folder_path,
-            args.index_path,
-            max_chunk_size=args.max_chunk_size,
+        index_params = IndexParams(
+            folder_path=folder_path,
+            index_path=index_path,
+            max_chunk_size=max_chunk_size,
         )
+
+        retriever, corpus = load_or_build_index(index_params=index_params)
+
         generated_answer = answer_question(
-            args.question,
-            corpus,
-            model=args.model,
-            base_url=args.base_url,
-            search_k=args.k,
-            top_context_chunks=args.top_context_chunks,
-            max_tokens=args.max_tokens,
-            timeout_seconds=args.timeout_seconds,
+            question=answer_params.question,
+            corpus=corpus,
+            model=answer_params.model,
+            base_url=answer_params.base_url,
+            search_k=answer_params.k,
+            top_context_chunks=answer_params.top_context_chunks,
+            max_tokens=answer_params.max_tokens,
+            timeout_seconds=answer_params.timeout_seconds,
             retriever=retriever,
         )
         MinimalAnswer(
@@ -229,6 +238,7 @@ class RAGCLI:
                 question=generated_answer.question,
                 retrieved_sources=generated_answer.retrieved_sources,
             )
+
         return generated_answer.to_dict()
 
     def answer_dataset(
@@ -312,7 +322,7 @@ def main() -> None:
         for error in e.errors():
             location = " -> ".join(str(loc) for loc in error["loc"])
             print(
-                f"  \033[93m{location}\033[0m: {error['msg']} "
+                f"  \033[93m{location}\033[0m: {error['msg']} \n"
                 f"(Provided input: '{error.get('input')}')"
             )
         print("==========")

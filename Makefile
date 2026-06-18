@@ -36,8 +36,6 @@ answer_the_dataset:
 
 	uv run python -m student answer_dataset \
 		--student_search_results_path data/output/search_results/dataset_code_public.json \
-		--save_directory data/output/search_results_and_answer \
-		--model Qwen/Qwen3-0.6B \
 
 answer_model_2:
 	uv run python -m student answer "What's the default value of trust_remote_code in vLLM's LLM class constructor?" --model Qwen/Qwen3-1.7B

@@ -433,7 +433,15 @@ class AnswerDatasetOutput(StrictBaseModel):
         validate_existing_file(value)
         with open(value, "r", encoding="utf-8") as f:
             content = json.load(f)
-        StudentSearchResultsAndAnswer.model_validate(content)
+
+        [
+            MinimalAnswer(
+                question_id=ell["question_id"],
+                question=ell["question"],
+                retrieved_sources=ell["retrieved_sources"],
+                answer=ell["answer"])
+            for ell in content["answers"]
+        ]
         return value
 
 
