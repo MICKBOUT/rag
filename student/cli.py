@@ -52,10 +52,11 @@ class RAGCLI:
     search(question: str,
         max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
         Ensure an index is available (load or build), run a nearest-neighbor
-        search for `question` returning the top `k` results. Returns a dict with:
-        - "question": the input question
-        - "k": number of results requested
-        - "results": list of result objects serialized to dict (one per hit)
+        search for `question` returning the top `k` results. Returns a dict
+        with:
+          - "question": the input question
+          - "k": number of results requested
+          - "results": list of result objects serialized to dict (one per hit)
 
     answer(question: str,
         max_chunk_size: int = Config.DEFAULT_MAX_CHUNK_SIZE) -> dict[str, Any]
@@ -141,22 +142,21 @@ class RAGCLI:
 
         retriever, corpus = load_or_build_index(index_params=index_params)
 
-        results = search(
+        search_result = search(
             question=search_params.question,
             retriever=retriever,
             corpus=corpus,
             k=search_params.k
         )
+        retrieved_sources = [result.to_dict() for result in search_result]
 
-        minimal_search_results = MinimalSearchResults(
-            question_id=results.question_id,
-            question=results.results.question,
+        result = MinimalSearchResults(
+            question_id="Single question (No id)",
+            question=search_params.question,
+            retrieved_sources=retrieved_sources
         )
-        return {
-            "question": search_params.question,
-            "k": search_params.k,
-            "results": [result.to_dict() for result in results],
-        }
+
+        return result.to_dict()
 
     def search_dataset(
             self,
