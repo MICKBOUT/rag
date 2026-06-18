@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Sequence
 from pathlib import Path
 import uuid
 import json
@@ -473,9 +474,9 @@ class MinimalAnswer(MinimalSearchResults):
 
 
 class StudentSearchResults(BaseModel):
-    search_results: list[MinimalSearchResults]
+    search_results: Sequence[MinimalSearchResults]
     k: int
 
 
 class StudentSearchResultsAndAnswer(StudentSearchResults):
-    search_results: list[MinimalAnswer]
+    search_results: Sequence[MinimalAnswer]

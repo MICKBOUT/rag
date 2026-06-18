@@ -4,8 +4,8 @@ from typing import Any, cast
 
 import bm25s
 
-from .parsing import get_ready_to_index_data
-from .config import Config
+from ..parsing import get_ready_to_index_data
+from ..config import Config
 
 
 def _metadata_path(index_path: str) -> Path:
@@ -59,27 +59,6 @@ def _entry_text(entry: dict[str, Any]) -> str:
     return str(entry.get("text", ""))
 
 
-def _source_span_length(entry: dict[str, Any]) -> int:
-    """Return the span length of the source text for an entry.
-
-    The BM25-processed `text` may include prefixes (e.g. "FILE:/HEADING:")
-    which make `len(text)` larger than the actual source span. This
-    function computes the length using the `first_character_index` and
-    `last_character_index` fields to obtain the true span length.
-
-    Args:
-        entry: A corpus entry expected to contain
-            `first_character_index` and `last_character_index` keys.
-
-    Returns:
-        The non-negative integer span length (last - first).
-    """
-
-    first = int(entry.get("first_character_index", 0))
-    last = int(entry.get("last_character_index", 0))
-    return max(0, last - first)
-
-
 def _limit_entry_text(
         entry: dict[str, Any], max_chunk_size: int) -> dict[str, Any]:
     """Return a copy of `entry` whose text/span is clipped to `max_chunk_size`.
@@ -98,7 +77,11 @@ def _limit_entry_text(
     """
 
     text = _entry_text(entry)
-    span_length = _source_span_length(entry)
+    span_length = max(0, (
+            int(entry.get("first_character_index", 0)) -
+            int(entry.get("last_character_index", 0))
+        )
+    )
 
     if len(text) <= max_chunk_size and span_length <= max_chunk_size:
         return entry
@@ -155,35 +138,6 @@ def _write_chunks(corpus: list[dict[str, Any]]) -> None:
             handle.write(
                 json.dumps(entry, ensure_ascii=False) + "\n"
             )
-
-
-def load_chunks(
-        chunks_path: str = Config.CHUNKS_PATH) -> list[dict[str, Any]]:
-    """Load chunked corpus entries from a newline-delimited JSON file.
-
-    Args:
-        chunks_path: Path to the chunks file (defaults to
-            `Config.CHUNKS_PATH`).
-
-    Returns:
-        A list of corpus entry dicts.
-
-    Raises:
-        FileNotFoundError: If the chunks file does not exist.
-    """
-
-    path = _resolve_repo_path(chunks_path)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Chunk file not found: {path}. Run `student index` first."
-        )
-
-    chunks: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        chunks.append(cast(dict[str, Any], json.loads(line)))
-    return chunks
 
 
 def _read_index_metadata(index_path: str) -> dict[str, Any] | None:
