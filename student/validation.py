@@ -476,6 +476,13 @@ class MinimalSearchResults(BaseModel):
     question: str
     retrieved_sources: list[MinimalSource]
 
+    def to_dict(self):
+        return {
+            "question_id": self.question_id,
+            "question": self.question,
+            "retrieved_sources": self.retrieved_sources,
+        }
+
 
 class MinimalAnswer(MinimalSearchResults):
     answer: str
