@@ -38,15 +38,15 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 py-modules = [
-    "ast_cleaninig",
     "cli",
+    "config",
     "generation",
-    "indexing",
     "models",
-    "pipeline",
-    "retrieval",
-    "validation",
 ]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["indexing"]
 
 [tool.mypy]
 mypy_path = "src"
