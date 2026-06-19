@@ -127,7 +127,7 @@ def answer_question(
         predictor = dspy.ChainOfThought(RAGSignature)
         prediction = predictor(context=context_str, question=question)
 
-    retrieved_sources = [res.to_source_dict() for res in results]
+    retrieved_sources = [res.to_MinimalSource() for res in results]
     return GeneratedAnswer(
         question_id="single_question",
         question_str=question,

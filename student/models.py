@@ -135,7 +135,7 @@ class GeneratedAnswer:
     question_id: str
     question_str: str
     answer: str
-    retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
+    retrieved_sources: list[MinimalSource] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the `GeneratedAnswer` to a JSON-serializable dict.

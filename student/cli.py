@@ -242,7 +242,7 @@ class RAGCLI:
         answer = MinimalAnswer(
                 answer=generated_answer.answer,
                 question_id=generated_answer.question_id,
-                question_str=generated_answer.question,
+                question_str=generated_answer.question_str,
                 retrieved_sources=generated_answer.retrieved_sources,
             )
 
