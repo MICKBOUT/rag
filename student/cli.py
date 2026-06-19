@@ -238,14 +238,14 @@ class RAGCLI:
             timeout_seconds=answer_params.timeout_seconds,
             retriever=retriever,
         )
-        MinimalAnswer(
+        answer = MinimalAnswer(
                 answer=generated_answer.answer,
                 question_id=generated_answer.question_id,
-                question=generated_answer.question,
+                question_str=generated_answer.question,
                 retrieved_sources=generated_answer.retrieved_sources,
             )
 
-        return generated_answer.to_dict()
+        return answer.to_dict()
 
     def answer_dataset(
             self,
@@ -283,7 +283,7 @@ class RAGCLI:
             checkpoint_interval=args.checkpoint_interval,
         )
         AnswerDatasetOutput(file_path=str(output_path))
-        return str(output_path)
+        return f"dataset answered path: {str(output_path)}"
 
     def evaluate(
             self,

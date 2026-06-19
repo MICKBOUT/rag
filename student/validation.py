@@ -4,6 +4,8 @@ from pathlib import Path
 import uuid
 import json
 
+from typing import Any
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -437,7 +439,7 @@ class AnswerDatasetOutput(StrictBaseModel):
         [
             MinimalAnswer(
                 question_id=ell["question_id"],
-                question=ell["question"],
+                question_str=ell["question"],
                 retrieved_sources=ell["retrieved_sources"],
                 answer=ell["answer"])
             for ell in content["answers"]
@@ -491,7 +493,7 @@ class MinimalSearchResults(BaseModel):
     question_str: str
     retrieved_sources: list[MinimalSource]
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "question_id": self.question_id,
             "question": self.question_str,
@@ -501,6 +503,16 @@ class MinimalSearchResults(BaseModel):
 
 class MinimalAnswer(MinimalSearchResults):
     answer: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the `MinimalAnswer` to a JSON-serializable dict.
+
+        Returns:
+            A dict suitable for JSON serialization and writing to disk.
+        """
+        dico = super().to_dict()
+        dico.update({"answer": self.answer})
+        return dico
 
 
 class StudentSearchResults(BaseModel):

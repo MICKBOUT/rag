@@ -130,7 +130,7 @@ def answer_question(
     retrieved_sources = [res.to_source_dict() for res in results]
     return GeneratedAnswer(
         question_id="single_question",
-        question=question,
+        question_str=question,
         retrieved_sources=retrieved_sources,
         answer=prediction.answer,
     )
@@ -262,7 +262,7 @@ def answer_dataset_to_file(
 
         gen_answer = GeneratedAnswer(
             question_id=str(question_id),
-            question=question,
+            question_str=question,
             answer=answer_text,
             retrieved_sources=retrieved_sources,
         )
@@ -290,5 +290,4 @@ def answer_dataset_to_file(
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump({"answers": answers}, f, indent=2, ensure_ascii=False)
-    print(answers)
     return output_path

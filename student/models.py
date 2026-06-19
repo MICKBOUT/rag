@@ -124,20 +124,6 @@ class GeneratedAnswer:
     """
 
     question_id: str
-    question: str
+    question_str: str
     answer: str
     retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize the `GeneratedAnswer` to a JSON-serializable dict.
-
-        Returns:
-            A dict suitable for JSON serialization and writing to disk.
-        """
-
-        return {
-            "question_id": self.question_id,
-            "question": self.question,
-            "retrieved_sources": self.retrieved_sources,
-            "answer": self.answer,
-        }
