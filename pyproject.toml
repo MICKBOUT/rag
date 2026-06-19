@@ -37,7 +37,6 @@ student = "student:main"
 requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
 py-modules = [
     "ast_cleaninig",
     "cli",
@@ -46,13 +45,12 @@ py-modules = [
     "models",
     "pipeline",
     "retrieval",
-    "student",
     "validation",
 ]
 
 [tool.mypy]
-mypy_path = "student"
-files = ["student"]
+mypy_path = "src"
+files = ["src"]
 ignore_missing_imports = true
 disable_error_code = ["misc"]
 
