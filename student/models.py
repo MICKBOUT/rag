@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .validation import MinimalSource
+
 
 @dataclass(slots=True)
 class SearchResult:
@@ -104,6 +106,13 @@ class SearchResult:
             "last_character_index": self.last_character_index,
         }
 
+    def to_MinimalSource(self) -> MinimalSource:
+        return MinimalSource(
+            file_path=self.file_path,
+            first_character_index=self.first_character_index,
+            last_character_index=self.last_character_index,
+        )
+
 
 @dataclass(slots=True)
 class GeneratedAnswer:
@@ -127,3 +136,17 @@ class GeneratedAnswer:
     question_str: str
     answer: str
     retrieved_sources: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the `GeneratedAnswer` to a JSON-serializable dict.
+
+        Returns:
+            A dict suitable for JSON serialization and writing to disk.
+        """
+
+        return {
+            "question_id": self.question_id,
+            "question": self.question_str,
+            "retrieved_sources": self.retrieved_sources,
+            "answer": self.answer,
+        }

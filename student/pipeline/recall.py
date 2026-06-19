@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from pathlib import Path
 from dataclasses import dataclass
 import json
@@ -28,7 +28,7 @@ class EvaluationSummary:
     recall_at_3: float
     recall_at_5: float
     recall_at_10: float
-    passed: bool | None = None
+    passed: Optional[bool] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the `EvaluationSummary` to a JSON-serializable dict.

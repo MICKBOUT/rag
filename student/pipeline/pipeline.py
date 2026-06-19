@@ -8,6 +8,7 @@ from ..indexing import load_or_build_index
 from ..models import SearchResult
 from ..retrieval import search
 from ..config import Config
+from ..validation import IndexParams
 from .pipeline_common import load_questions
 
 
@@ -89,7 +90,9 @@ def search_dataset(
     """
 
     if retriever is None or corpus is None:
-        retriever, corpus = load_or_build_index(max_chunk_size=max_chunk_size)
+        retriever, corpus = load_or_build_index(index_params=IndexParams(
+            max_chunk_size=max_chunk_size,
+        ))
 
     questions = load_questions(dataset_path)
     search_results: list[dict[str, Any]] = []

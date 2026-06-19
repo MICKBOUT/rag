@@ -52,8 +52,8 @@ class Config:
             multi-question or batch interactions. Default: 600.0.
     """
     DEFAULT_BASE_URL = "http://localhost:8000/v1"
-    DEFAULT_OUTPUT_DIR = Path("data/output/search_results")
-    DEFAULT_OUTPUT_DIR_ANSWER = Path("data/output/search_results_and_answer")
+    DEFAULT_OUTPUT_DIR = "data/output/search_results"
+    DEFAULT_OUTPUT_DIR_ANSWER = "data/output/search_results_and_answer"
     DEFAULT_MAX_TOKENS = 512
     DEFAULT_SEARCH_K = 10
     DEFAULT_TOP_CONTEXT_CHUNKS = None

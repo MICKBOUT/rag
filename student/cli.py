@@ -147,7 +147,8 @@ class RAGCLI:
             corpus=corpus,
             k=search_params.k
         )
-        retrieved_sources = [result.to_dict() for result in search_result]
+        retrieved_sources = [result.to_MinimalSource()
+                             for result in search_result]
 
         result = MinimalSearchResults(
             question_id="Single question (No id)",

@@ -175,9 +175,9 @@ def answer_dataset_to_file(
         The `Path` to the output JSON file containing generated answers
         under the top-level key "answers".
     """
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / Path(student_search_results_path).name
+    path_dir = Path(output_dir)
+    path_dir.mkdir(parents=True, exist_ok=True)
+    output_path = path_dir / Path(student_search_results_path).name
 
     with open(student_search_results_path, "r", encoding="utf-8") as f:
         payload = json.load(f)

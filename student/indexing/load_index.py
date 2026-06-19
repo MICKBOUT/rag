@@ -7,7 +7,6 @@ import bm25s
 from . import build_and_save_index
 from .index_common import resolve_repo_path, _metadata_path
 from ..validation import IndexParams
-from ..config import Config
 
 
 def _corpus_has_absolute_paths(corpus: list[dict[str, Any]]) -> bool:
