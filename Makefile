@@ -14,19 +14,19 @@ index:
 	uv run python -m student index
 
 evaluate_docs_results:
-	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_docs_$(PRIVACY).json --k 10 --save_directory data/output/search_results
-	./moulinette/moulinette-ubuntu evaluate_student_search_results --student_answer_path data/output/search_results/dataset_docs_$(PRIVACY).json --dataset_path data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json --k 10 --max_context_length 2000
+	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_docs_$(PRIVACY).json
+	./moulinette/moulinette-ubuntu evaluate_student_search_results --student_answer_path data/output/search_results/dataset_docs_$(PRIVACY).json --dataset_path data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json
 
 evaluate_code_results:
-	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_code_$(PRIVACY).json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
-	./moulinette/moulinette-ubuntu evaluate_student_search_results --student_answer_path data/output/search_results/dataset_code_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_code_$(PRIVACY).json --k 10 --max_context_length 2000
+	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_code_$(PRIVACY).json
+	./moulinette/moulinette-ubuntu evaluate_student_search_results --student_answer_path data/output/search_results/dataset_code_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_code_$(PRIVACY).json
 
 recall_code:	
-	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_code_$(PRIVACY).json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
+	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_code_$(PRIVACY).json
 	uv run python -m student evaluate data/output/search_results/dataset_code_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_code_$(PRIVACY).json --threshold 0.5
 
 recall_docs:
-	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_docs_$(PRIVACY).json --k 10 --save_directory data/output/search_results --max_chunk_size 2000
+	uv run python -m student search_dataset data/datasets/$(PRIVACY)/UnansweredQuestions/dataset_docs_$(PRIVACY).json
 	uv run python -m student evaluate data/output/search_results/dataset_docs_$(PRIVACY).json data/datasets/$(PRIVACY)/AnsweredQuestions/dataset_docs_$(PRIVACY).json --threshold 0.8
 
 answer_the_dataset:
